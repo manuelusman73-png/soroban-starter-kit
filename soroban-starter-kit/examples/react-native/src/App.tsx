@@ -8,6 +8,7 @@ import { TokenScreen } from './screens/TokenScreen';
 import { EscrowScreen } from './screens/EscrowScreen';
 import { QueueScreen } from './screens/QueueScreen';
 import { ExportScreen } from './screens/ExportScreen';
+import { DashboardScreen } from './screens/DashboardScreen';
 import { theme } from './theme';
 
 const Tab = createBottomTabNavigator();
@@ -57,6 +58,15 @@ export default function App() {
                 tabBarLabel: 'Queue',
                 tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
                 tabBarAccessibilityLabel: 'Offline queue screen',
+              }}
+            />
+            <Tab.Screen
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{
+                tabBarLabel: 'Dashboard',
+                tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>,
+                tabBarAccessibilityLabel: 'Dashboard screen',
               }}
             />
             <Tab.Screen
