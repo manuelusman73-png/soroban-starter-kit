@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TokenScreen } from './screens/TokenScreen';
 import { EscrowScreen } from './screens/EscrowScreen';
 import { QueueScreen } from './screens/QueueScreen';
+import { ExportScreen } from './screens/ExportScreen';
 import { theme } from './theme';
 
 const Tab = createBottomTabNavigator();
@@ -56,6 +57,15 @@ export default function App() {
                 tabBarLabel: 'Queue',
                 tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
                 tabBarAccessibilityLabel: 'Offline queue screen',
+              }}
+            />
+            <Tab.Screen
+              name="Export"
+              component={ExportScreen}
+              options={{
+                tabBarLabel: 'Export',
+                tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📤</Text>,
+                tabBarAccessibilityLabel: 'Export screen',
               }}
             />
           </Tab.Navigator>
