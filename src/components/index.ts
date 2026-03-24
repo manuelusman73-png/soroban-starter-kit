@@ -4,3 +4,4 @@ export { TransactionItem, TransactionList } from './TransactionItem';
 export { BalanceDisplay, BalanceList } from './BalanceDisplay';
 export { SyncStatus, OfflineIndicator } from './SyncStatus';
 export { AdvancedBalanceDisplay } from './AdvancedBalanceDisplay';
+export { TransactionFormBuilder } from './TransactionFormBuilder';
