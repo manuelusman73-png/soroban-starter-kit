@@ -1,6 +1,7 @@
-# Frontend Integration Example
+# Soroban API Explorer
 
-A web frontend example demonstrating how to integrate with the Soroban Token and Escrow contracts using the Freighter wallet.
+Interactive API documentation and testing interface for the Token and Escrow contracts.
+Zero build step — open `index.html` directly or serve it locally.
 
 ## Prerequisites
 
@@ -14,7 +15,10 @@ A web frontend example demonstrating how to integrate with the Soroban Token and
 cd examples/frontend
 npm install
 npm run dev
+# → http://localhost:3000
 ```
+
+Or just open `index.html` directly in your browser — no build step required.
 
 ## Wallet Integration
 
@@ -105,3 +109,47 @@ await callContract(ESCROW_CONTRACT_ID, 'approve_delivery', []);
 - [Stellar SDK Docs](https://stellar.github.io/js-stellar-sdk/)
 - [Soroban Docs](https://soroban.stellar.org/docs)
 - [Freighter API](https://docs.freighter.app/)
+
+## API Explorer Features
+
+### Interactive Documentation
+- All Token and Escrow contract methods listed in the sidebar
+- Green dot = read-only (no auth), amber dot = write (requires signature)
+- Click any method to see its description, parameters, return type, and possible errors
+
+### Parameter Validation
+- Real-time validation as you type
+- Checks Stellar address format (G.../C... prefix, 56 chars)
+- Validates i128/u32 ranges and bool values
+- Required field enforcement
+
+### Code Generation
+Switch between TypeScript, JavaScript, Python, and cURL snippets that update live as you fill in parameters.
+
+### Simulate vs Invoke
+- **Simulate** — runs a read-only preflight via `simulateTransaction`. Works without a wallet.
+- **Invoke** — assembles, signs via Freighter, and submits the transaction on-chain.
+
+### Authentication Testing
+Each write method shows which role must sign (buyer / seller / arbiter / admin) and lists possible error codes.
+
+## File Structure
+
+```
+examples/frontend/
+├── index.html      # App shell
+├── styles.css      # Dark theme UI
+├── api-spec.js     # Contract method definitions (params, types, auth, errors)
+├── codegen.js      # Multi-language code generation
+├── app.js          # UI logic, wallet integration, contract invocation
+└── package.json    # Optional dev server
+```
+
+## Supported Networks
+
+| Network    | RPC Endpoint |
+|------------|-------------|
+| Testnet    | https://soroban-testnet.stellar.org |
+| Mainnet    | https://mainnet.stellar.validationcloud.io/... |
+| Futurenet  | https://rpc-futurenet.stellar.org |
+| Custom     | Enter any RPC URL |
