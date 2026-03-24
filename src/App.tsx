@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ConnectivityStatus, OfflineBanner } from './components/ConnectivityStatus';
 import { TransactionList } from './components/TransactionItem';
-import { BalanceList } from './components/BalanceDisplay';
+import { AdvancedBalanceDisplay } from './components/AdvancedBalanceDisplay';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
@@ -146,22 +146,15 @@ function App(): JSX.Element {
           <div>
             {activeTab === 'balances' && (
               <>
-                <h2 className="mb-md">Token Balances</h2>
-                {isOnline ? (
-                  <p className="text-muted mb-md">
-                    You're online. Balances are fetched from the network.
-                  </p>
-                ) : (
+                {!isOnline && (
                   <p className="text-warning mb-md">
                     You're offline. Showing cached balances from your last online session.
                   </p>
                 )}
-                <BalanceList 
+                <AdvancedBalanceDisplay
                   balances={balances}
                   emptyMessage="No cached balances. Connect to the network to fetch your balances."
                 />
-                
-                {/* Show demo balances when empty */}
                 {balances.length === 0 && (
                   <div className="card mt-lg" style={{ textAlign: 'center' }}>
                     <p className="text-muted">

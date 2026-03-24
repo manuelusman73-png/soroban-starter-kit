@@ -447,3 +447,143 @@ button {
 
 .w-full { width: 100%; }
 .h-full { height: 100%; }
+
+/* ── Advanced Balance Display ─────────────────────────────────────────────── */
+
+.advanced-balance-root {
+  width: 100%;
+}
+
+/* Animated balance value */
+.balance-amount-value {
+  display: inline-block;
+  transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.balance-animating {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.balance-hidden {
+  letter-spacing: 0.2em;
+  color: var(--color-text-muted);
+}
+
+/* Token card */
+.balance-card-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.balance-card-advanced:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.balance-token-symbol {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-highlight);
+}
+
+.balance-fiat {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.balance-change {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.balance-change.positive { color: var(--color-success); }
+.balance-change.negative { color: var(--color-error); }
+
+.balance-change-since {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* Alert badge */
+.balance-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 2px var(--spacing-sm);
+  background-color: rgba(220, 53, 69, 0.15);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  color: var(--color-error);
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+/* Portfolio summary */
+.balance-portfolio-summary {
+  margin-bottom: var(--spacing-md);
+}
+
+.balance-portfolio-total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.balance-portfolio-label {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* Preferences panel */
+.balance-prefs-wrapper {
+  position: relative;
+}
+
+.balance-prefs-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--spacing-sm));
+  width: 280px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+}
+
+.balance-prefs-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.balance-prefs-toggle input[type="checkbox"] {
+  accent-color: var(--color-highlight);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .balance-portfolio-total {
+    font-size: 1.5rem;
+  }
+
+  .balance-prefs-panel {
+    position: fixed;
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    width: auto;
+  }
+}
