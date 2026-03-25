@@ -9,6 +9,8 @@ import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
+import { DashboardBuilder } from './builder/DashboardBuilder';
+import type { ComponentType } from './builder/types';
 
 /**
  * Main App Component
@@ -32,6 +34,7 @@ function App(): JSX.Element {
   const [activeTab, setActiveTab] = useState<'balances' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
   const [activeTab, setActiveTab] = useState<'balances' | 'build' | 'pending' | 'history'>('balances');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [builderMode, setBuilderMode] = useState(false);
 
   // Demo function to simulate transaction submission
   const handleSubmitTransaction = async (): Promise<void> => {
@@ -50,6 +53,30 @@ function App(): JSX.Element {
       console.error('Failed to create transaction:', error);
     } finally {
       setIsDemoLoading(false);
+    }
+  };
+
+  const renderComponent = (type: ComponentType) => {
+    switch (type) {
+      case 'balances':    return <BalanceList balances={balances} emptyMessage="No cached balances." />;
+      case 'transactions': return <TransactionList transactions={[...pendingTransactions, ...syncedTransactions]} onRetry={retryTransaction} onDelete={deleteTransaction} onResolveConflict={resolveConflict} emptyMessage="No transactions." />;
+      case 'sync':        return <SyncStatus />;
+      case 'actions':     return (
+        <div className="flex gap-md items-center">
+          <button onClick={handleSubmitTransaction} disabled={isDemoLoading} className="btn btn-primary">
+            {isDemoLoading ? 'Creating...' : '＋ Queue Transfer (Demo)'}
+          </button>
+          <button onClick={syncNow} disabled={!isOnline || syncStatus.isSyncing} className="btn btn-secondary">
+            {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        </div>
+      );
+      case 'storage':     return (
+        <div className="flex flex-col gap-sm">
+          <div className="flex justify-between"><span className="text-muted">Cached Items</span><span>{balances.length + escrows.length}</span></div>
+          <div className="flex justify-between"><span className="text-muted">Transactions</span><span>{pendingTransactions.length + syncedTransactions.length}</span></div>
+        </div>
+      );
     }
   };
 
@@ -79,11 +106,22 @@ function App(): JSX.Element {
         <div className="flex items-center gap-md">
           <OfflineIndicator />
           <ConnectivityStatus />
+          <button
+            className={builderMode ? 'btn btn-primary' : 'btn btn-secondary'}
+            onClick={() => setBuilderMode((v) => !v)}
+            title="Toggle layout builder"
+          >
+            🧩 {builderMode ? 'Exit Builder' : 'Edit Layout'}
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="main-content container">
+        {builderMode ? (
+          <DashboardBuilder renderComponent={renderComponent} />
+        ) : (
+        <>
         {/* Demo Section - Create Transaction */}
         <section className="card mb-lg">
           <div className="card-header">
@@ -277,6 +315,8 @@ function App(): JSX.Element {
             </div>
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );
