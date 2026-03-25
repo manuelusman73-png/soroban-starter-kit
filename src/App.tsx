@@ -29,6 +29,8 @@ function App(): JSX.Element {
   } = useTransactionQueue();
 
   const [activeTab, setActiveTab] = useState<'balances' | 'analytics' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'build' | 'pending' | 'history'>('balances');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   // Demo function to simulate transaction submission
