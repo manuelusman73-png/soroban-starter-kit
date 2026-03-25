@@ -14,3 +14,6 @@ export { ContextualNav } from './ContextualNav';
 export { Chart } from './Chart';
 export { Dashboard } from './Dashboard';
 export { LiveDataFeed } from './LiveDataFeed';
+export { NotificationCenter } from './NotificationCenter';
+export { NotificationPreferences } from './NotificationPreferences';
+export { AlertRules } from './AlertRules';
