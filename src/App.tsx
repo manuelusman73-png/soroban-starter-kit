@@ -3,6 +3,7 @@ import { ConnectivityStatus, OfflineBanner } from './components/ConnectivityStat
 import { TransactionList } from './components/TransactionItem';
 import { BalanceList } from './components/BalanceDisplay';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
+import { SearchPage } from './components/SearchPage';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
@@ -25,7 +26,7 @@ function App(): JSX.Element {
     resolveConflict,
   } = useTransactionQueue();
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'pending' | 'history' | 'search'>('balances');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   // Demo function to simulate transaction submission
@@ -138,10 +139,17 @@ function App(): JSX.Element {
           >
             ✓ Synced History ({syncedTransactions.length})
           </button>
+          <button
+            onClick={() => setActiveTab('search')}
+            className={activeTab === 'search' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'search' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            🔍 Search & Filter
+          </button>
         </div>
 
         {/* Content Area */}
-        <div className="grid" style={{ gridTemplateColumns: '1fr 300px' }}>
+        <div className="grid" style={{ gridTemplateColumns: activeTab === 'search' ? '1fr' : '1fr 300px' }}>
           {/* Main Panel */}
           <div>
             {activeTab === 'balances' && (
@@ -199,52 +207,62 @@ function App(): JSX.Element {
                 />
               </>
             )}
+
+            {activeTab === 'search' && (
+              <SearchPage
+                transactions={[...pendingTransactions, ...syncedTransactions]}
+                balances={balances}
+                escrows={escrows}
+              />
+            )}
           </div>
 
           {/* Sidebar */}
-          <div>
-            <SyncStatus />
-            
-            {/* Storage Info */}
-            <div className="card mt-lg">
-              <div className="card-header">
-                <span className="card-title">Storage</span>
-              </div>
+          {activeTab !== 'search' && (
+            <div>
+              <SyncStatus />
               
-              <div className="flex flex-col gap-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted">Cached Items</span>
-                  <span>{balances.length + escrows.length}</span>
+              {/* Storage Info */}
+              <div className="card mt-lg">
+                <div className="card-header">
+                  <span className="card-title">Storage</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Transactions</span>
-                  <span>{pendingTransactions.length + syncedTransactions.length}</span>
+                
+                <div className="flex flex-col gap-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted">Cached Items</span>
+                    <span>{balances.length + escrows.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Transactions</span>
+                    <span>{pendingTransactions.length + syncedTransactions.length}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Offline Info */}
-            <div className="card mt-lg">
-              <div className="card-header">
-                <span className="card-title">ℹ️ Offline Mode</span>
-              </div>
-              
-              <div className="flex flex-col gap-sm text-muted" style={{ fontSize: '0.875rem' }}>
-                <p>
-                  • Your balances are cached automatically
-                </p>
-                <p>
-                  • Transactions are queued when offline
-                </p>
-                <p>
-                  • Data syncs when connection restores
-                </p>
-                <p>
-                  • Conflicts are resolved automatically
-                </p>
+              {/* Offline Info */}
+              <div className="card mt-lg">
+                <div className="card-header">
+                  <span className="card-title">ℹ️ Offline Mode</span>
+                </div>
+                
+                <div className="flex flex-col gap-sm text-muted" style={{ fontSize: '0.875rem' }}>
+                  <p>
+                    • Your balances are cached automatically
+                  </p>
+                  <p>
+                    • Transactions are queued when offline
+                  </p>
+                  <p>
+                    • Data syncs when connection restores
+                  </p>
+                  <p>
+                    • Conflicts are resolved automatically
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>
