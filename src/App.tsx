@@ -4,6 +4,7 @@ import { TransactionList } from './components/TransactionItem';
 import { BalanceList } from './components/BalanceDisplay';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { ThemeToggle } from './components/ThemeToggle';
+import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
@@ -75,6 +76,7 @@ function App(): JSX.Element {
         <div className="flex items-center gap-md">
           <OfflineIndicator />
           <ConnectivityStatus />
+          <TutorialLauncher />
           <ThemeToggle />
         </div>
       </header>
@@ -249,6 +251,8 @@ function App(): JSX.Element {
           </div>
         </div>
       </main>
+
+      <TutorialOverlay />
     </div>
   );
 }
