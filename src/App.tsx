@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { ConnectivityStatus, OfflineBanner } from './components/ConnectivityStatus';
 import { TransactionList } from './components/TransactionItem';
-import { BalanceList } from './components/BalanceDisplay';
+import { AdvancedBalanceDisplay } from './components/AdvancedBalanceDisplay';
+import { TransactionFormBuilder } from './components/TransactionFormBuilder';
+import { TokenTransferWizard } from './components/TokenTransferWizard';
+import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
+import { SearchPage } from './components/SearchPage';
+import { ResponsiveNav, Breadcrumb, ContextualNav } from './components';
+import { NavItem } from './services/navigation/types';
+import { ThemeToggle } from './components/ThemeToggle';
+import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
+import { InstallBanner, PushToggle } from './components/PWAControls';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
@@ -10,10 +19,6 @@ import { DashboardBuilder } from './builder/DashboardBuilder';
 import { WorkflowLauncher } from './workflow';
 import type { ComponentType } from './builder/types';
 
-/**
- * Main App Component
- * Demonstrates offline functionality with balances and transactions
- */
 function App(): JSX.Element {
   const { isOnline } = useConnectivity();
   const { balances, escrows, isInitialized } = useStorage();
@@ -29,10 +34,63 @@ function App(): JSX.Element {
   } = useTransactionQueue();
 
   const [activeTab, setActiveTab] = useState<'balances' | 'pending' | 'history' | 'workflows'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'pending' | 'history' | 'search'>('balances');
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [breadcrumbs, setBreadcrumbs] = useState([{ label: 'Home' }]);
+
+  const navItems: NavItem[] = [
+    {
+      id: 'balances',
+      label: 'Balances',
+      icon: '📊',
+      onClick: () => {
+        setActiveTab('balances');
+        setBreadcrumbs([{ label: 'Home' }, { label: 'Balances' }]);
+      },
+    },
+    {
+      id: 'transactions',
+      label: 'Transactions',
+      icon: '💱',
+      children: [
+        {
+          id: 'pending',
+          label: 'Pending',
+          icon: '⏳',
+          badge: pendingTransactions.length,
+          onClick: () => {
+            setActiveTab('pending');
+            setBreadcrumbs([{ label: 'Home' }, { label: 'Transactions' }, { label: 'Pending' }]);
+          },
+        },
+        {
+          id: 'history',
+          label: 'History',
+          icon: '✓',
+          badge: syncedTransactions.length,
+          onClick: () => {
+            setActiveTab('history');
+            setBreadcrumbs([{ label: 'Home' }, { label: 'Transactions' }, { label: 'History' }]);
+          },
+        },
+      ],
+    },
+    {
+      id: 'search',
+      label: 'Search',
+      icon: '🔍',
+      onClick: () => {
+        setActiveTab('search');
+        setBreadcrumbs([{ label: 'Home' }, { label: 'Search' }]);
+      },
+    },
+  ];
+  const [activeTab, setActiveTab] = useState<'balances' | 'analytics' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'build' | 'pending' | 'history'>('balances');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [builderMode, setBuilderMode] = useState(false);
 
-  // Demo function to simulate transaction submission
   const handleSubmitTransaction = async (): Promise<void> => {
     setIsDemoLoading(true);
     try {
@@ -42,7 +100,7 @@ function App(): JSX.Element {
         'transfer',
         {
           to: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-          amount: '10000000', // 1 token
+          amount: '10000000',
         }
       );
     } catch (error) {
@@ -88,9 +146,13 @@ function App(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Offline Banner */}
+    <div className="min-h-screen" style={{ display: 'flex', flexDirection: 'column' }}>
       <OfflineBanner />
+
+      {/* Install Banner */}
+      <div className="container">
+        <InstallBanner />
+      </div>
 
       {/* Header */}
       <header className="header container">
@@ -102,6 +164,9 @@ function App(): JSX.Element {
         <div className="flex items-center gap-md">
           <OfflineIndicator />
           <ConnectivityStatus />
+          <PushToggle />
+          <TutorialLauncher />
+          <ThemeToggle />
           <button
             className={builderMode ? 'btn btn-primary' : 'btn btn-secondary'}
             onClick={() => setBuilderMode((v) => !v)}
@@ -112,6 +177,46 @@ function App(): JSX.Element {
         </div>
       </header>
 
+      <div style={{ padding: '0 var(--spacing-md)', borderBottom: '1px solid var(--color-border)' }}>
+        <Breadcrumb items={breadcrumbs} />
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ width: '250px', minWidth: '250px' }}>
+          <ResponsiveNav items={navItems} onItemClick={(item) => item.onClick?.()} />
+        </div>
+
+        <main className="main-content" style={{ flex: 1, overflow: 'auto', padding: 'var(--spacing-lg)' }}>
+          {activeTab === 'balances' && (
+            <ContextualNav
+              context="Quick Actions"
+              items={[
+                { id: 'sync', label: 'Sync Now', icon: '🔄', onClick: syncNow },
+                { id: 'add', label: 'Add Balance', icon: '➕', onClick: () => {} },
+              ]}
+            />
+          )}
+
+          <section className="card mb-lg" style={{ marginTop: 'var(--spacing-lg)' }}>
+            <div className="card-header">
+              <span className="card-title">Quick Actions</span>
+            </div>
+            
+            <div className="flex gap-md items-center">
+              <button
+                onClick={handleSubmitTransaction}
+                disabled={isDemoLoading}
+                className="btn btn-primary"
+              >
+                {isDemoLoading ? (
+                  <>
+                    <span className="spinner" style={{ width: '16px', height: '16px' }} />
+                    Creating...
+                  </>
+                ) : (
+                  '+ Queue Transfer (Demo)'
+                )}
+              </button>
       {/* Main Content */}
       <main className="main-content container">
         {builderMode ? (
@@ -164,6 +269,27 @@ function App(): JSX.Element {
             📊 Cached Balances
           </button>
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={activeTab === 'analytics' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'analytics' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            📈 Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('transfer')}
+            className={activeTab === 'transfer' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'transfer' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            💸 Transfer
+          </button>
+          <button
+            onClick={() => setActiveTab('build')}
+            className={activeTab === 'build' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'build' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            🔨 Build Transaction
+          </button>
+          <button
             onClick={() => setActiveTab('pending')}
             className={activeTab === 'pending' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ backgroundColor: activeTab === 'pending' ? 'var(--color-highlight)' : 'transparent' }}
@@ -192,22 +318,15 @@ function App(): JSX.Element {
           <div>
             {activeTab === 'balances' && (
               <>
-                <h2 className="mb-md">Token Balances</h2>
-                {isOnline ? (
-                  <p className="text-muted mb-md">
-                    You're online. Balances are fetched from the network.
-                  </p>
-                ) : (
+                {!isOnline && (
                   <p className="text-warning mb-md">
                     You're offline. Showing cached balances from your last online session.
                   </p>
                 )}
-                <BalanceList 
+                <AdvancedBalanceDisplay
                   balances={balances}
                   emptyMessage="No cached balances. Connect to the network to fetch your balances."
                 />
-                
-                {/* Show demo balances when empty */}
                 {balances.length === 0 && (
                   <div className="card mt-lg" style={{ textAlign: 'center' }}>
                     <p className="text-muted">
@@ -216,6 +335,18 @@ function App(): JSX.Element {
                   </div>
                 )}
               </>
+            )}
+
+            {activeTab === 'analytics' && (
+              <PortfolioDashboard />
+            )}
+
+            {activeTab === 'transfer' && (
+              <TokenTransferWizard />
+            )}
+
+            {activeTab === 'build' && (
+              <TransactionFormBuilder />
             )}
 
             {activeTab === 'pending' && (
@@ -265,44 +396,77 @@ function App(): JSX.Element {
                 <span className="card-title">Storage</span>
               </div>
               
-              <div className="flex flex-col gap-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted">Cached Items</span>
-                  <span>{balances.length + escrows.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Transactions</span>
-                  <span>{pendingTransactions.length + syncedTransactions.length}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Offline Info */}
-            <div className="card mt-lg">
-              <div className="card-header">
-                <span className="card-title">ℹ️ Offline Mode</span>
-              </div>
+              <button
+                onClick={syncNow}
+                disabled={!isOnline || syncStatus.isSyncing}
+                className="btn btn-secondary"
+              >
+                {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
+              </button>
               
-              <div className="flex flex-col gap-sm text-muted" style={{ fontSize: '0.875rem' }}>
-                <p>
-                  • Your balances are cached automatically
-                </p>
-                <p>
-                  • Transactions are queued when offline
-                </p>
-                <p>
-                  • Data syncs when connection restores
-                </p>
-                <p>
-                  • Conflicts are resolved automatically
-                </p>
-              </div>
+              <span className="text-muted" style={{ marginLeft: 'auto' }}>
+                {pendingTransactions.length} pending • {syncedTransactions.length} synced
+              </span>
             </div>
+          </section>
+
+          {activeTab === 'balances' && (
+            <>
+              <h2 className="mb-md">Token Balances</h2>
+              {isOnline ? (
+                <p className="text-muted mb-md">You're online. Balances are fetched from the network.</p>
+              ) : (
+                <p className="text-warning mb-md">You're offline. Showing cached balances.</p>
+              )}
+              <BalanceList 
+                balances={balances}
+                emptyMessage="No cached balances."
+              />
+            </>
+          )}
+
+          {activeTab === 'pending' && (
+            <>
+              <h2 className="mb-md">Pending Transactions</h2>
+              {!isOnline && (
+                <p className="text-warning mb-md">You're offline. Transactions will sync when connection restores.</p>
+              )}
+              <TransactionList
+                transactions={pendingTransactions}
+                onRetry={retryTransaction}
+                onDelete={deleteTransaction}
+                onResolveConflict={resolveConflict}
+                emptyMessage="No pending transactions."
+              />
+            </>
+          )}
+
+          {activeTab === 'history' && (
+            <>
+              <h2 className="mb-md">Synced Transactions</h2>
+              <TransactionList
+                transactions={syncedTransactions}
+                emptyMessage="No synced transactions yet."
+              />
+            </>
+          )}
+
+          {activeTab === 'search' && (
+            <SearchPage
+              transactions={[...pendingTransactions, ...syncedTransactions]}
+              balances={balances}
+              escrows={escrows}
+            />
+          )}
+        </main>
+      </div>
           </div>
         </div>
         </>
         )}
       </main>
+
+      <TutorialOverlay />
     </div>
   );
 }
