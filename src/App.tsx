@@ -7,6 +7,7 @@ import { TokenTransferWizard } from './components/TokenTransferWizard';
 import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { ThemeToggle } from './components/ThemeToggle';
+import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
@@ -107,6 +108,7 @@ function App(): JSX.Element {
         <div className="flex items-center gap-md">
           <OfflineIndicator />
           <ConnectivityStatus />
+          <TutorialLauncher />
           <ThemeToggle />
           <button
             className={builderMode ? 'btn btn-primary' : 'btn btn-secondary'}
@@ -320,6 +322,8 @@ function App(): JSX.Element {
         </>
         )}
       </main>
+
+      <TutorialOverlay />
     </div>
   );
 }
