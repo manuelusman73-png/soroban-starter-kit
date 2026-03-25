@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { ConnectivityStatus, OfflineBanner } from './components/ConnectivityStatus';
 import { TransactionList } from './components/TransactionItem';
-import { BalanceList } from './components/BalanceDisplay';
+import { AdvancedBalanceDisplay } from './components/AdvancedBalanceDisplay';
+import { TransactionFormBuilder } from './components/TransactionFormBuilder';
+import { TokenTransferWizard } from './components/TokenTransferWizard';
+import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { ThemeToggle } from './components/ThemeToggle';
 import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
@@ -9,6 +12,8 @@ import { InstallBanner, PushToggle } from './components/PWAControls';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
+import { DashboardBuilder } from './builder/DashboardBuilder';
+import type { ComponentType } from './builder/types';
 
 /**
  * Main App Component
@@ -28,8 +33,11 @@ function App(): JSX.Element {
     resolveConflict,
   } = useTransactionQueue();
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'analytics' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'transfer' | 'build' | 'pending' | 'history'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'build' | 'pending' | 'history'>('balances');
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [builderMode, setBuilderMode] = useState(false);
 
   // Demo function to simulate transaction submission
   const handleSubmitTransaction = async (): Promise<void> => {
@@ -48,6 +56,30 @@ function App(): JSX.Element {
       console.error('Failed to create transaction:', error);
     } finally {
       setIsDemoLoading(false);
+    }
+  };
+
+  const renderComponent = (type: ComponentType) => {
+    switch (type) {
+      case 'balances':    return <BalanceList balances={balances} emptyMessage="No cached balances." />;
+      case 'transactions': return <TransactionList transactions={[...pendingTransactions, ...syncedTransactions]} onRetry={retryTransaction} onDelete={deleteTransaction} onResolveConflict={resolveConflict} emptyMessage="No transactions." />;
+      case 'sync':        return <SyncStatus />;
+      case 'actions':     return (
+        <div className="flex gap-md items-center">
+          <button onClick={handleSubmitTransaction} disabled={isDemoLoading} className="btn btn-primary">
+            {isDemoLoading ? 'Creating...' : '＋ Queue Transfer (Demo)'}
+          </button>
+          <button onClick={syncNow} disabled={!isOnline || syncStatus.isSyncing} className="btn btn-secondary">
+            {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        </div>
+      );
+      case 'storage':     return (
+        <div className="flex flex-col gap-sm">
+          <div className="flex justify-between"><span className="text-muted">Cached Items</span><span>{balances.length + escrows.length}</span></div>
+          <div className="flex justify-between"><span className="text-muted">Transactions</span><span>{pendingTransactions.length + syncedTransactions.length}</span></div>
+        </div>
+      );
     }
   };
 
@@ -85,11 +117,22 @@ function App(): JSX.Element {
           <PushToggle />
           <TutorialLauncher />
           <ThemeToggle />
+          <button
+            className={builderMode ? 'btn btn-primary' : 'btn btn-secondary'}
+            onClick={() => setBuilderMode((v) => !v)}
+            title="Toggle layout builder"
+          >
+            🧩 {builderMode ? 'Exit Builder' : 'Edit Layout'}
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="main-content container">
+        {builderMode ? (
+          <DashboardBuilder renderComponent={renderComponent} />
+        ) : (
+        <>
         {/* Demo Section - Create Transaction */}
         <section className="card mb-lg">
           <div className="card-header">
@@ -136,6 +179,27 @@ function App(): JSX.Element {
             📊 Cached Balances
           </button>
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={activeTab === 'analytics' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'analytics' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            📈 Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('transfer')}
+            className={activeTab === 'transfer' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'transfer' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            💸 Transfer
+          </button>
+          <button
+            onClick={() => setActiveTab('build')}
+            className={activeTab === 'build' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: activeTab === 'build' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            🔨 Build Transaction
+          </button>
+          <button
             onClick={() => setActiveTab('pending')}
             className={activeTab === 'pending' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ backgroundColor: activeTab === 'pending' ? 'var(--color-highlight)' : 'transparent' }}
@@ -157,22 +221,15 @@ function App(): JSX.Element {
           <div>
             {activeTab === 'balances' && (
               <>
-                <h2 className="mb-md">Token Balances</h2>
-                {isOnline ? (
-                  <p className="text-muted mb-md">
-                    You're online. Balances are fetched from the network.
-                  </p>
-                ) : (
+                {!isOnline && (
                   <p className="text-warning mb-md">
                     You're offline. Showing cached balances from your last online session.
                   </p>
                 )}
-                <BalanceList 
+                <AdvancedBalanceDisplay
                   balances={balances}
                   emptyMessage="No cached balances. Connect to the network to fetch your balances."
                 />
-                
-                {/* Show demo balances when empty */}
                 {balances.length === 0 && (
                   <div className="card mt-lg" style={{ textAlign: 'center' }}>
                     <p className="text-muted">
@@ -181,6 +238,18 @@ function App(): JSX.Element {
                   </div>
                 )}
               </>
+            )}
+
+            {activeTab === 'analytics' && (
+              <PortfolioDashboard />
+            )}
+
+            {activeTab === 'transfer' && (
+              <TokenTransferWizard />
+            )}
+
+            {activeTab === 'build' && (
+              <TransactionFormBuilder />
             )}
 
             {activeTab === 'pending' && (
@@ -257,6 +326,8 @@ function App(): JSX.Element {
             </div>
           </div>
         </div>
+        </>
+        )}
       </main>
 
       <TutorialOverlay />
