@@ -12,7 +12,8 @@ import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
-import { InstallBanner, PushToggle } from './components/PWAControls';
+import { InstallBanner } from './components/PWAControls';
+import { PWADashboard } from './components/PWADashboard';
 import { useConnectivity } from './context/ConnectivityContext';
 import { useStorage } from './context/StorageContext';
 import { useTransactionQueue } from './context/TransactionQueueContext';
@@ -251,7 +252,7 @@ function App(): JSX.Element {
           <OfflineIndicator />
           <ConnectivityStatus />
           <NotificationCenter />
-          <PushToggle />
+          <PWADashboard />
           <TutorialLauncher />
           <ThemeCustomizer />
           <ThemeToggle />
