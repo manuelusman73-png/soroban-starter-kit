@@ -645,6 +645,13 @@ function App(): JSX.Element {
             🗄 Database
           </button>
           <button
+            onClick={() => setActiveTab('compliance' as any)}
+            className={(activeTab as string) === 'compliance' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ backgroundColor: (activeTab as string) === 'compliance' ? 'var(--color-highlight)' : 'transparent' }}
+          >
+            📋 Compliance
+          </button>
+          <button
             onClick={() => setActiveTab('transfer')}
             className={activeTab === 'transfer' ? 'btn btn-primary' : 'btn btn-secondary'}
             style={{ backgroundColor: activeTab === 'transfer' ? 'var(--color-highlight)' : 'transparent' }}
@@ -733,6 +740,10 @@ function App(): JSX.Element {
 
             {(activeTab as string) === 'database' && (
               <DatabasePanel />
+            )}
+
+            {(activeTab as string) === 'compliance' && (
+              <ComplianceDashboard />
             )}
 
             {activeTab === 'transfer' && (
