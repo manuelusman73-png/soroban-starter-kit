@@ -20,3 +20,7 @@ export { syncService } from './sync';
 // Security Service
 export { securityService, encryptData, decryptData } from './security';
 export type { SecuritySession, AuditLogEntry, SecurityAlert, SecurityConfig, SecurityState, AuthMethod, AlertSeverity } from './security';
+
+// Wallet Service
+export { walletService, WALLET_REGISTRY } from './wallet';
+export type { WalletId, WalletInfo, WalletAccount, WalletConnection, WalletState, WalletPreferences, ConnectionEvent, NetworkPassphrase } from './wallet';
