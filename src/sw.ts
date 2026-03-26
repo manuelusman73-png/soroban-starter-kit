@@ -71,3 +71,17 @@ self.addEventListener('notificationclick', (event: Event) => {
     })
   );
 });
+
+// Periodic background sync
+self.addEventListener('periodicsync', (event: ExtendableEvent & { tag: string }) => {
+  if (event.tag === 'data-refresh') {
+    event.waitUntil(
+      // Revalidate horizon cache on periodic sync
+      caches.open('horizon-api').then(cache =>
+        cache.keys().then(keys =>
+          Promise.all(keys.map(req => fetch(req).then(res => { if (res.ok) cache.put(req, res); }).catch(() => {})))
+        )
+      )
+    );
+  }
+});
