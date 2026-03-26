@@ -8,6 +8,7 @@ import { ResponsiveNav, Breadcrumb, ContextualNav, Dashboard, LiveDataFeed, Noti
 import { PreferenceManagement, PreferenceAnalytics } from './components';
 import { NavItem } from './services/navigation/types';
 import { DataPoint } from './services/visualization/types';
+import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
@@ -252,6 +253,7 @@ function App(): JSX.Element {
           <NotificationCenter />
           <PushToggle />
           <TutorialLauncher />
+          <ThemeCustomizer />
           <ThemeToggle />
           <LanguageSwitcher />
           <button
