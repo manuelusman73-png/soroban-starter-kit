@@ -10,7 +10,7 @@ import { SearchPage } from './components/SearchPage';
 import { ResponsiveNav, Breadcrumb, ContextualNav, Dashboard, LiveDataFeed, NotificationCenter, NotificationPreferences, AlertRules } from './components';
 import { NavItem } from './services/navigation/types';
 import { DataPoint } from './services/visualization/types';
-import { ThemeToggle } from './components/ThemeToggle';
+import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { TutorialOverlay, TutorialLauncher } from './components/TutorialOverlay';
 import { InstallBanner, PushToggle } from './components/PWAControls';
 import { useConnectivity } from './context/ConnectivityContext';
@@ -206,7 +206,7 @@ function App(): JSX.Element {
           <NotificationCenter />
           <PushToggle />
           <TutorialLauncher />
-          <ThemeToggle />
+          <ThemeCustomizer />
           <button
             className={builderMode ? 'btn btn-primary' : 'btn btn-secondary'}
             onClick={() => setBuilderMode((v) => !v)}
