@@ -5,3 +5,29 @@ dist/
 .env
 node_modules
 soroban-starter-kit/target/
+
+# Rust
+target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+*.local
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
