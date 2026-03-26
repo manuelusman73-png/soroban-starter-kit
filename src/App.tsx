@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { ConnectivityStatus, OfflineBanner } from './components/ConnectivityStatus';
 import { TransactionList } from './components/TransactionItem';
+import { TransactionHistory } from './components/TransactionHistory';
 import { AdvancedBalanceDisplay } from './components/AdvancedBalanceDisplay';
 import { SyncStatus, OfflineIndicator } from './components/SyncStatus';
 import { SearchPage } from './components/SearchPage';
@@ -44,6 +45,7 @@ type ActiveTab =
   | 'build'
   | 'pending'
   | 'history'
+  | 'tx-history'
   | 'workflows'
   | 'table'
   | 'search'
@@ -184,12 +186,21 @@ function App(): JSX.Element {
           icon: '✓',
           badge: syncedTransactions.length,
           onClick: () => navigate('history', [{ label: 'Home' }, { label: 'Transactions' }, { label: 'History' }]),
+        },
+        {
+          id: 'tx-history',
+          label: 'Analytics',
+          icon: '📊',
+          onClick: () => navigate('tx-history', [{ label: 'Home' }, { label: 'Transactions' }, { label: 'Analytics' }]),
           onClick: () => { setActiveTab('history'); setBreadcrumbs([{ label: 'Home' }, { label: 'Transactions' }, { label: 'History' }]); },
         },
       ],
     },
     {
       id: 'analytics',
+      label: 'Portfolio',
+      icon: '📈',
+      onClick: () => navigate('analytics', [{ label: 'Home' }, { label: 'Portfolio' }]),
       label: 'Analytics',
       icon: '📈',
       onClick: () => navigate('analytics', [{ label: 'Home' }, { label: 'Analytics' }]),
@@ -238,6 +249,8 @@ function App(): JSX.Element {
       label: 'Settings',
       icon: '⚙️',
       onClick: () => navigate('settings', [{ label: 'Home' }, { label: 'Settings' }]),
+    },
+  ];
     },
   ];
     },
@@ -703,6 +716,12 @@ function App(): JSX.Element {
                         emptyMessage="No synced transactions yet."
                       />
                     </>
+                  )}
+
+                  {activeTab === 'tx-history' && (
+                    <TransactionHistory
+                      transactions={[...pendingTransactions, ...syncedTransactions]}
+                    />
                   )}
 
                   {activeTab === 'workflows' && (
