@@ -31,6 +31,7 @@ export { PortfolioAnalytics } from './PortfolioAnalytics';
 export { AdminPanel } from './AdminPanel';
 export { ApiGatewayPortal } from './ApiGatewayPortal';
 export { DatabasePanel } from './DatabasePanel';
+export { ComplianceDashboard } from './ComplianceDashboard';
 export { SecurityDashboard } from './SecurityDashboard';
 export { TransactionHistory } from './TransactionHistory';
 export { ContractInteraction } from './ContractInteraction';

@@ -105,6 +105,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 <AdminProvider>
                   <GatewayProvider>
                     <DatabaseProvider>
+                      <ComplianceProvider>
+                        <TransactionQueueProvider>
+                          <App />
+                        </TransactionQueueProvider>
+                      </ComplianceProvider>
                       <TransactionQueueProvider>
                         <App />
                       </TransactionQueueProvider>
