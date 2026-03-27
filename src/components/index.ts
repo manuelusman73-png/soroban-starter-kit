@@ -77,3 +77,4 @@ export { ContractInteraction } from "./ContractInteraction";
 export { PreferenceManagement } from "./PreferenceManagement";
 export { PreferenceAnalytics } from "./PreferenceAnalytics";
 export { UserOnboarding } from "./UserOnboarding";
+export { UserAnalyticsDashboard } from "./UserAnalyticsDashboard";

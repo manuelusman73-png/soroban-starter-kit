@@ -71,6 +71,7 @@ const PerformanceDashboard = lazy(() => import('./components/PerformanceDashboar
 const AccessibilityDashboard = lazy(() => import('./components/AccessibilityDashboard').then(m => ({ default: m.AccessibilityDashboard })));
 const ComponentDocs = lazy(() => import('./components/ComponentDocs').then(m => ({ default: m.ComponentDocs })));
 const ErrorDashboard = lazy(() => import('./components/ErrorDashboard').then(m => ({ default: m.ErrorDashboard })));
+const UserAnalyticsDashboard = lazy(() => import('./components/UserAnalyticsDashboard').then(m => ({ default: m.UserAnalyticsDashboard })));
 
 const LazyFallback = () => <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>Loading…</div>;
 
@@ -310,6 +311,15 @@ function App(): JSX.Element {
       onClick: () => {
         setActiveTab('error-tracking' as any);
         setBreadcrumbs([{ label: 'Home' }, { label: 'Error Tracking' }]);
+      },
+    },
+    {
+      id: 'user-analytics',
+      label: 'User Analytics',
+      icon: '👥',
+      onClick: () => {
+        setActiveTab('user-analytics' as any);
+        setBreadcrumbs([{ label: 'Home' }, { label: 'User Analytics' }]);
       },
     },
   ];
@@ -1294,6 +1304,12 @@ function App(): JSX.Element {
           {(activeTab as string) === 'error-tracking' && (
             <Suspense fallback={<LazyFallback />}>
               <ErrorDashboard />
+            </Suspense>
+          )}
+
+          {(activeTab as string) === 'user-analytics' && (
+            <Suspense fallback={<LazyFallback />}>
+              <UserAnalyticsDashboard />
             </Suspense>
           )}
         </main>
