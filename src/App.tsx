@@ -74,6 +74,7 @@ const ErrorDashboard = lazy(() => import('./components/ErrorDashboard').then(m =
 const UserAnalyticsDashboard = lazy(() => import('./components/UserAnalyticsDashboard').then(m => ({ default: m.UserAnalyticsDashboard })));
 const CMSDashboard = lazy(() => import('./components/CMSDashboard').then(m => ({ default: m.CMSDashboard })));
 const APIFrameworkDashboard = lazy(() => import('./components/APIFrameworkDashboard').then(m => ({ default: m.APIFrameworkDashboard })));
+const CrossPlatformDashboard = lazy(() => import('./components/CrossPlatformDashboard').then(m => ({ default: m.CrossPlatformDashboard })));
 
 const LazyFallback = () => <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>Loading…</div>;
 
@@ -340,6 +341,15 @@ function App(): JSX.Element {
       onClick: () => {
         setActiveTab('api-framework' as any);
         setBreadcrumbs([{ label: 'Home' }, { label: 'API Framework' }]);
+      },
+    },
+    {
+      id: 'cross-platform',
+      label: 'Cross-Platform',
+      icon: '🖥',
+      onClick: () => {
+        setActiveTab('cross-platform' as any);
+        setBreadcrumbs([{ label: 'Home' }, { label: 'Cross-Platform' }]);
       },
     },
   ];
@@ -1342,6 +1352,12 @@ function App(): JSX.Element {
           {(activeTab as string) === 'api-framework' && (
             <Suspense fallback={<LazyFallback />}>
               <APIFrameworkDashboard />
+            </Suspense>
+          )}
+
+          {(activeTab as string) === 'cross-platform' && (
+            <Suspense fallback={<LazyFallback />}>
+              <CrossPlatformDashboard />
             </Suspense>
           )}
         </main>

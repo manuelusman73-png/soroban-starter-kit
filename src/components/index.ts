@@ -80,3 +80,4 @@ export { UserOnboarding } from "./UserOnboarding";
 export { UserAnalyticsDashboard } from "./UserAnalyticsDashboard";
 export { CMSDashboard } from "./CMSDashboard";
 export { APIFrameworkDashboard } from "./APIFrameworkDashboard";
+export { CrossPlatformDashboard } from "./CrossPlatformDashboard";
