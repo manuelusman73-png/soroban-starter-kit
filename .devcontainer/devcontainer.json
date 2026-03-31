@@ -7,7 +7,9 @@
       "version": "1.78",
       "profile": "default"
     },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    }
   },
 
   "postCreateCommand": "bash scripts/setup.sh",
