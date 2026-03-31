@@ -19,16 +19,23 @@ else
   warn ".env already exists, skipping"
 fi
 
-# ── 2. Node dependencies ──────────────────────────────────────────────────────
-if ! command -v node &>/dev/null; then
-  die "Node.js not found. Install from https://nodejs.org (v20+)"
+# ── 2. Node dependencies (optional for frontend development) ──────────────────
+if command -v node &>/dev/null && [[ -f package.json ]]; then
+  NODE_VER=$(node -e "process.stdout.write(process.versions.node.split('.')[0])")
+  if [[ "$NODE_VER" -ge 20 ]]; then
+    log "Installing Node dependencies"
+    if [[ -f package-lock.json ]]; then
+      npm ci
+    else
+      npm install
+    fi
+    ok "Node dependencies installed"
+  else
+    warn "Node.js 20+ required for frontend development (found $NODE_VER)"
+  fi
+else
+  ok "Skipping Node.js setup (not needed for Soroban contract development)"
 fi
-NODE_VER=$(node -e "process.stdout.write(process.versions.node.split('.')[0])")
-[[ "$NODE_VER" -ge 20 ]] || die "Node.js 20+ required (found $NODE_VER)"
-
-log "Installing Node dependencies"
-npm ci
-ok "Node dependencies installed"
 
 # ── 3. Rust / Soroban CLI (optional) ─────────────────────────────────────────
 if command -v cargo &>/dev/null; then
@@ -56,6 +63,8 @@ fi
 
 echo ""
 ok "Setup complete! Next steps:"
-echo "  npm run dev          — start frontend dev server"
-echo "  ./scripts/local-net.sh start  — start local Stellar node"
-echo "  ./scripts/deploy.sh testnet   — deploy contracts to testnet"
+echo "  stellar --version        — verify Soroban CLI installation"
+echo "  cd contracts/escrow && cargo build  — build escrow contract"
+echo "  cd contracts/token && cargo build   — build token contract"
+echo "  ./scripts/local-net.sh start        — start local Stellar node"
+echo "  ./scripts/deploy.sh testnet         — deploy contracts to testnet"
