@@ -62,7 +62,7 @@ fn test_initialize_twice() {
 }
 
 #[test]
-#[should_panic(expected = "Deadline must be in the future")]
+#[should_panic(expected = "Deadline must be at least MIN_DEADLINE_BUFFER ledgers in the future")]
 fn test_initialize_past_deadline() {
     let env = Env::default();
     env.mock_all_auths();
