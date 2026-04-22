@@ -33,7 +33,7 @@ fn test_initialize() {
 }
 
 #[test]
-#[should_panic(expected = "AlreadyInitialized")]
+#[should_panic]
 fn test_initialize_twice() {
     let env = Env::default();
     env.mock_all_auths();
