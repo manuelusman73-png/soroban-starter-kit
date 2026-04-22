@@ -160,31 +160,31 @@ impl TokenContract {
     }
 
     /// Get the current admin
-    pub fn admin(env: Env) -> Address {
+    pub fn admin(env: Env) -> Result<Address, TokenError> {
         env.storage().instance()
             .get(&DataKey::Admin)
-            .unwrap()
+            .ok_or(TokenError::NotInitialized)
     }
 
     /// Get token name
-    pub fn name(env: Env) -> String {
+    pub fn name(env: Env) -> Result<String, TokenError> {
         env.storage().instance()
             .get(&DataKey::Metadata(MetadataKey::Name))
-            .unwrap()
+            .ok_or(TokenError::NotInitialized)
     }
 
     /// Get token symbol
-    pub fn symbol(env: Env) -> String {
+    pub fn symbol(env: Env) -> Result<String, TokenError> {
         env.storage().instance()
             .get(&DataKey::Metadata(MetadataKey::Symbol))
-            .unwrap()
+            .ok_or(TokenError::NotInitialized)
     }
 
     /// Get token decimals
-    pub fn decimals(env: Env) -> u32 {
+    pub fn decimals(env: Env) -> Result<u32, TokenError> {
         env.storage().instance()
             .get(&DataKey::Metadata(MetadataKey::Decimals))
-            .unwrap()
+            .ok_or(TokenError::NotInitialized)
     }
 
     /// Get total supply
