@@ -10,7 +10,7 @@ pub use errors::TokenError;
 pub use storage::{AllowanceDataKey, DataKey, MetadataKey};
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, token, token::TokenInterface, Address, Env, String, Symbol,
+    contract, contractimpl, contracttype, token, token::TokenInterface, Address, Env, String,
     panic_with_error,
 };
 

@@ -9,8 +9,7 @@ mod test;
 pub use errors::EscrowError;
 pub use storage::{DataKey, EscrowInfo, EscrowState};
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, token};
-use admin::transfer_token;
+use soroban_sdk::{contract, contractimpl, Address, Env, token};
 use storage::DataKey::{Amount, Arbiter, Buyer, Deadline, Seller, State, TokenContract};
 
 /// Minimum TTL before a bump is needed (~7 days at 5s/ledger).
