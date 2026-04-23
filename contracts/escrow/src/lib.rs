@@ -253,12 +253,12 @@ impl EscrowContract {
         let token_contract: Address = env.storage().instance().get(&DataKey::TokenContract).unwrap();
         let amount: i128 = env.storage().instance().get(&DataKey::Amount).unwrap();
 
+        // Update state before transfer (checks-effects-interactions)
+        env.storage().instance().set(&DataKey::State, &EscrowState::Completed);
+
         // Transfer tokens to seller
         let token_client = token::Client::new(&env, &token_contract);
         token_client.transfer(&env.current_contract_address(), &seller, &amount);
-
-        // Update state
-        env.storage().instance().set(&DataKey::State, &EscrowState::Completed);
 
         // Emit event
         env.events().publish((Symbol::new(&env, "funds_released"), seller), amount);
@@ -271,12 +271,12 @@ impl EscrowContract {
         let token_contract: Address = env.storage().instance().get(&DataKey::TokenContract).unwrap();
         let amount: i128 = env.storage().instance().get(&DataKey::Amount).unwrap();
 
+        // Update state before transfer (checks-effects-interactions)
+        env.storage().instance().set(&DataKey::State, &EscrowState::Refunded);
+
         // Transfer tokens back to buyer
         let token_client = token::Client::new(&env, &token_contract);
         token_client.transfer(&env.current_contract_address(), &buyer, &amount);
-
-        // Update state
-        env.storage().instance().set(&DataKey::State, &EscrowState::Refunded);
 
         // Emit event
         env.events().publish((Symbol::new(&env, "funds_refunded"), buyer), amount);
