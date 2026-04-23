@@ -24,8 +24,6 @@ pub enum DataKey {
     Amount,
     Deadline,
     State,
-    BuyerApproved,
-    SellerDelivered,
 }
 
 #[contracttype]
@@ -80,8 +78,6 @@ impl EscrowContract {
         env.storage().instance().set(&DataKey::Amount, &amount);
         env.storage().instance().set(&DataKey::Deadline, &deadline_ledger);
         env.storage().instance().set(&DataKey::State, &EscrowState::Created);
-        env.storage().instance().set(&DataKey::BuyerApproved, &false);
-        env.storage().instance().set(&DataKey::SellerDelivered, &false);
 
         // Emit event
         env.events().publish(
@@ -135,7 +131,6 @@ impl EscrowContract {
         seller.require_auth();
 
         // Mark as delivered
-        env.storage().instance().set(&DataKey::SellerDelivered, &true);
         env.storage().instance().set(&DataKey::State, &EscrowState::Delivered);
 
         // Emit event
