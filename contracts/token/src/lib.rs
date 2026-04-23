@@ -77,6 +77,7 @@ pub enum TokenError {
     Unauthorized = 3,
     AlreadyInitialized = 4,
     NotInitialized = 5,
+    InvalidAmount = 6,
     Overflow = 6,
 }
 
@@ -126,6 +127,9 @@ impl TokenContract {
             .ok_or(TokenError::NotInitialized)?;
         admin.require_auth();
 
+        if amount < 0 {
+            return Err(TokenError::InvalidAmount);
+        }
         let balance = Self::balance_of(env.clone(), to.clone());
         env.storage().persistent().set(&DataKey::Balance(to.clone()), &(balance + amount));
 
@@ -157,6 +161,11 @@ impl TokenContract {
     pub fn burn(env: Env, from: Address, amount: i128) -> Result<(), TokenError> {
         let admin = require_admin(&env)?;
         admin.require_auth();
+
+        if amount < 0 {
+            return Err(TokenError::InvalidAmount);
+        }
+
         if amount < 0 { panic!("Amount must be non-negative"); }
         let balance = Self::balance_of(env.clone(), from.clone());
         if balance < amount { return Err(TokenError::InsufficientBalance); }
@@ -458,6 +467,9 @@ impl TokenContract {
     }
 
     fn transfer_impl(env: Env, from: Address, to: Address, amount: i128) -> Result<(), TokenError> {
+        if amount < 0 {
+            return Err(TokenError::InvalidAmount);
+        }
         env.storage().persistent().get(&Balance(id)).unwrap_or(0)
     }
 
