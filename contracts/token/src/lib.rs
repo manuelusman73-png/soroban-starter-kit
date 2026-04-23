@@ -40,12 +40,14 @@ pub enum MetadataKey {
 
 /// Custom errors for the token contract
 #[contracttype]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenError {
     InsufficientBalance = 1,
     InsufficientAllowance = 2,
     Unauthorized = 3,
     AlreadyInitialized = 4,
     NotInitialized = 5,
+    Overflow = 6,
 }
 
 #[contractimpl]
@@ -95,14 +97,15 @@ impl TokenContract {
 
         // Update recipient balance
         let balance = Self::balance_of(env.clone(), to.clone());
-        let new_balance = balance + amount;
+        let new_balance = balance.checked_add(amount).ok_or(TokenError::Overflow)?;
         env.storage().persistent().set(&DataKey::Balance(to.clone()), &new_balance);
 
         // Update total supply
         let total_supply: i128 = env.storage().instance()
             .get(&DataKey::TotalSupply)
             .unwrap_or(0);
-        env.storage().instance().set(&DataKey::TotalSupply, &(total_supply + amount));
+        let new_supply = total_supply.checked_add(amount).ok_or(TokenError::Overflow)?;
+        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
 
         // Emit event
         env.events().publish((Symbol::new(&env, "mint"), to), amount);
@@ -128,14 +131,15 @@ impl TokenContract {
         }
 
         // Update balance
-        let new_balance = balance - amount;
+        let new_balance = balance.checked_sub(amount).ok_or(TokenError::Overflow)?;
         env.storage().persistent().set(&DataKey::Balance(from.clone()), &new_balance);
 
         // Update total supply
         let total_supply: i128 = env.storage().instance()
             .get(&DataKey::TotalSupply)
             .unwrap_or(0);
-        env.storage().instance().set(&DataKey::TotalSupply, &(total_supply - amount));
+        let new_supply = total_supply.checked_sub(amount).ok_or(TokenError::Overflow)?;
+        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
 
         // Emit event
         env.events().publish((Symbol::new(&env, "burn"), from), amount);
@@ -270,10 +274,10 @@ impl TokenContract {
         }
 
         // Update balances
-        env.storage().persistent().set(&DataKey::Balance(from.clone()), &(from_balance - amount));
+        env.storage().persistent().set(&DataKey::Balance(from.clone()), &(from_balance.checked_sub(amount).ok_or(TokenError::Overflow)?));
         
         let to_balance = Self::balance_of(env.clone(), to.clone());
-        env.storage().persistent().set(&DataKey::Balance(to.clone()), &(to_balance + amount));
+        env.storage().persistent().set(&DataKey::Balance(to.clone()), &(to_balance.checked_add(amount).ok_or(TokenError::Overflow)?));
 
         // Emit event
         env.events().publish((Symbol::new(&env, "transfer"), from, to), amount);
