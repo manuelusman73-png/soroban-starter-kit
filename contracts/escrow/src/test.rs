@@ -338,7 +338,7 @@ fn test_invalid_fund_from_funded() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")]
+#[should_panic(expected = "Error(Contract, #2)")]
 fn test_invalid_fund_from_delivered() {
     let env = Env::default();
     env.mock_all_auths();
@@ -346,7 +346,7 @@ fn test_invalid_fund_from_delivered() {
     let (client, ..) = setup_funded_escrow(&env);
     client.mark_delivered();
 
-    // Try to fund when state is Delivered - should fail
+    // Try to fund when state is Delivered - should fail with InvalidState
     client.fund();
 }
 
