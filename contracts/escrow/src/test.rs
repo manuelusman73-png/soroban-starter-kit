@@ -247,3 +247,105 @@ fn test_unauthorized_approve_delivery() {
     client.approve_delivery();
     assert_eq!(client.get_state(), Some(EscrowState::Completed));
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_mark_delivered_from_created() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = setup_token(&env, &buyer, 1000);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 100;
+
+    let (client, _) = create_escrow_contract(&env);
+    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+
+    // Try to mark delivered when state is Created - should fail
+    client.mark_delivered();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_approve_delivery_from_created() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = setup_token(&env, &buyer, 1000);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 100;
+
+    let (client, _) = create_escrow_contract(&env);
+    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+
+    // Try to approve delivery when state is Created - should fail
+    client.approve_delivery();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_approve_delivery_from_funded() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+
+    // Try to approve delivery when state is Funded (not Delivered) - should fail
+    client.approve_delivery();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_cancel_from_funded() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+
+    // Try to cancel when state is Funded (only Created can be cancelled) - should fail
+    client.cancel();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_cancel_from_delivered() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+    client.mark_delivered();
+
+    // Try to cancel when state is Delivered - should fail
+    client.cancel();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_fund_from_funded() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+
+    // Try to fund when already Funded - should fail
+    client.fund();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_fund_from_delivered() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+    client.mark_delivered();
+
+    // Try to fund when state is Delivered - should fail
+    client.fund();
+}
