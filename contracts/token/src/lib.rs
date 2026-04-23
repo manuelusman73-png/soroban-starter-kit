@@ -249,7 +249,8 @@ impl token::TokenInterface for TokenContract {
         let key = Allowance(AllowanceDataKey { from: from.clone(), spender: spender.clone() });
         env.storage().temporary().set(&key, &amount);
         if expiration_ledger > env.ledger().sequence() {
-            env.storage().temporary().extend_ttl(&key, expiration_ledger, expiration_ledger);
+            let ttl = expiration_ledger.saturating_sub(env.ledger().sequence());
+            env.storage().temporary().extend_ttl(&key, ttl, ttl);
         }
         events::approved(&env, &from, &spender, amount);
 
