@@ -62,6 +62,7 @@ pub enum EscrowError {
     AlreadyInitialized = 5,
     NotInitialized = 6,
     InsufficientFunds = 7,
+    InvalidParties = 8,
 }
 
 #[contractimpl]
@@ -78,6 +79,12 @@ impl EscrowContract {
         if env.storage().instance().has(&State) {
             return Err(EscrowError::AlreadyInitialized);
         }
+
+        if buyer == seller || buyer == arbiter || seller == arbiter {
+            return Err(EscrowError::InvalidParties);
+        }
+
+        // Verify deadline is in the future
         if deadline_ledger <= env.ledger().sequence() {
             panic!("Deadline must be in the future");
         }
