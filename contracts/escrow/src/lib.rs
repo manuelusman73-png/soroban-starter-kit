@@ -31,6 +31,17 @@ fn bump_instance(env: &Env) {
 #[contract]
 pub struct EscrowContract;
 
+#[contracttype]
+#[derive(Clone)]
+pub enum DataKey {
+    Buyer,
+    Seller,
+    Arbiter,
+    TokenContract,
+    Amount,
+    Deadline,
+    State,
+}
 pub use errors::EscrowError;
 pub use storage::{DataKey, EscrowInfo, EscrowState};
 
@@ -163,7 +174,6 @@ impl EscrowContract {
         events::delivery_marked(&env, &seller);
 
         // Mark as delivered
-        env.storage().instance().set(&DataKey::SellerDelivered, &true);
         env.storage().instance().set(&DataKey::State, &EscrowState::Delivered);
         bump_instance(&env);
 
