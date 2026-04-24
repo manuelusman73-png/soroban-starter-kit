@@ -12,25 +12,27 @@ use soroban_sdk::{contracttype, Address};
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
-    /// The buyer's [`Address`].
+    /// Instance storage – the buyer's [`Address`].
     Buyer,
-    /// The seller's [`Address`].
+    /// Instance storage – the seller's [`Address`].
     Seller,
-    /// The arbiter's [`Address`] (used for dispute resolution).
+    /// Instance storage – the arbiter's [`Address`] (used for dispute resolution).
     Arbiter,
-    /// The Soroban token contract [`Address`] used for fund transfers.
+    /// Instance storage – the Soroban token contract [`Address`] used for fund transfers.
     TokenContract,
-    /// Escrowed token amount as `i128`.
+    /// Instance storage – escrowed token amount as `i128`.
     Amount,
-    /// Ledger sequence number after which a refund may be requested.
+    /// Instance storage – ledger sequence number after which a refund may be requested (`u32`).
     Deadline,
-    /// Current [`EscrowState`] of the escrow lifecycle.
+    /// Instance storage – current [`EscrowState`] of the escrow lifecycle.
     State,
-    /// `true` once the buyer has approved delivery.
+    /// Instance storage – `true` once the buyer has approved delivery (`bool`).
     BuyerApproved,
-    /// `true` once the seller has marked goods/services as delivered.
+    /// Instance storage – `true` once the seller has marked goods/services as delivered (`bool`).
     SellerDelivered,
+    /// Instance storage – whether the contract is paused (`bool`).
     Paused,
+    /// Instance storage – contract version number (`u32`).
     Version,
 }
 

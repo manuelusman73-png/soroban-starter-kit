@@ -16,8 +16,9 @@ use soroban_sdk::{contracttype, Address};
 pub enum DataKey {
     /// Instance storage – the contract administrator [`Address`].
     Admin,
-    /// Persistent storage – token balance for a given [`Address`].
+    /// Instance storage – pending admin [`Address`] awaiting acceptance.
     PendingAdmin,
+    /// Persistent storage – token balance (`i128`) for a given [`Address`].
     Balance(Address),
     /// Temporary storage – allowance record keyed by owner/spender pair.
     Allowance(AllowanceDataKey),
@@ -25,8 +26,11 @@ pub enum DataKey {
     Metadata(MetadataKey),
     /// Instance storage – total token supply as `i128`.
     TotalSupply,
+    /// Instance storage – whether the contract is paused (`bool`).
     Paused,
+    /// Instance storage – contract version number (`u32`).
     Version,
+    /// Instance storage – maximum tokens that may ever be minted (`i128`).
     MaxSupply,
 }
 
