@@ -111,12 +111,27 @@ jobs:
             fi
           done
 
+      - name: Check WASM sizes
+        run: |
+          MAX=65536
+          FAILED=0
+          for wasm in target/wasm32-unknown-unknown/release/*.wasm; do
+            size=$(wc -c < "$wasm")
+            echo "$(basename $wasm): $size bytes"
+            if [ "$size" -gt "$MAX" ]; then
+              echo "ERROR: $(basename $wasm) exceeds $MAX bytes ($size)"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
+
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-contracts
           path: target/wasm32-unknown-unknown/release/*.wasm
           retention-days: 7
+
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 

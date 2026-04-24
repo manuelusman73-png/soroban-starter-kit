@@ -17,10 +17,16 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.contracts
+      target: builder
+    command: >
+      sh -c "for dir in contracts/*/; do
+        [ -f \"$$dir/Cargo.toml\" ] && stellar contract build --manifest-path \"$$dir/Cargo.toml\";
+      done"
     volumes:
       - ../contracts:/contracts
       - cargo-cache:/usr/local/cargo/registry
     env_file: ../.env
+    restart: "no"
     depends_on:
       - stellar-node
 
