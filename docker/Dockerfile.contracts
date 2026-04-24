@@ -1,14 +1,21 @@
-# Rust contract builder
-FROM rust:1.78-slim AS contracts
+# Stage 1: build
+FROM rust:1.78-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev curl ca-certificates \
+    pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Soroban CLI
 RUN cargo install --locked stellar-cli --features opt
 
 WORKDIR /contracts
 COPY soroban-starter-kit/ .
 
-CMD ["stellar", "contract", "build"]
+RUN for dir in contracts/*/; do \
+      [ -f "$dir/Cargo.toml" ] && stellar contract build --manifest-path "$dir/Cargo.toml"; \
+    done
+
+# Stage 2: runtime — only .wasm artifacts
+FROM debian:bookworm-slim AS runtime
+
+WORKDIR /wasm
+COPY --from=builder /contracts/target/wasm32-unknown-unknown/release/*.wasm ./
