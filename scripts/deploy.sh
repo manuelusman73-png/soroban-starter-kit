@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONTRACTS_DIR="$ROOT/contracts"
+CONTRACTS_DIR="$ROOT/soroban-starter-kit/contracts"
 
 NETWORK="${1:-testnet}"
 CONTRACT="${2:-all}"

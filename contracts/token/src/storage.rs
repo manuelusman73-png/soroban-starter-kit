@@ -17,6 +17,7 @@ pub enum DataKey {
     /// Instance storage – the contract administrator [`Address`].
     Admin,
     /// Persistent storage – token balance for a given [`Address`].
+    PendingAdmin,
     Balance(Address),
     /// Temporary storage – allowance record keyed by owner/spender pair.
     Allowance(AllowanceDataKey),
@@ -24,6 +25,9 @@ pub enum DataKey {
     Metadata(MetadataKey),
     /// Instance storage – total token supply as `i128`.
     TotalSupply,
+    Paused,
+    Version,
+    MaxSupply,
 }
 
 /// Composite key identifying a unique owner/spender allowance entry.

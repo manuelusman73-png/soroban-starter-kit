@@ -27,4 +27,7 @@ pub enum TokenError {
     AlreadyInitialized = 4,
     /// An operation was attempted before the contract was initialized.
     NotInitialized = 5,
+    InvalidAmount = 6,
+    Overflow = 7,
+    ExceedsMaxSupply = 6,
 }

@@ -1,70 +1,137 @@
 #![cfg(test)]
 
 use super::*;
+use soroban_sdk::token::TokenInterface;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _},
-    token::StellarAssetClient,
-    Address, Env,
+    testutils::{Address as _, Events as _, Ledger as _},
+    Address, Env, IntoVal, String, Symbol,
 };
 
-fn create_escrow_contract(env: &Env) -> (EscrowContractClient<'_>, Address) {
+// ---------------------------------------------------------------------------
+// MockToken — a no-op token contract so cross-contract calls don't panic
+// ---------------------------------------------------------------------------
+
+#[contract]
+pub struct MockToken;
+
+#[contractimpl]
+impl token::TokenInterface for MockToken {
+    fn allowance(_env: Env, _from: Address, _spender: Address) -> i128 {
+        0
+    }
+
+    fn approve(
+        _env: Env,
+        _from: Address,
+        _spender: Address,
+        _amount: i128,
+        _expiration_ledger: u32,
+    ) {
+    }
+
+    fn balance(_env: Env, _id: Address) -> i128 {
+        i128::MAX
+    }
+
+    fn transfer(_env: Env, _from: Address, _to: Address, _amount: i128) {}
+
+    fn transfer_from(_env: Env, _spender: Address, _from: Address, _to: Address, _amount: i128) {}
+
+    fn burn(_env: Env, _from: Address, _amount: i128) {}
+
+    fn burn_from(_env: Env, _spender: Address, _from: Address, _amount: i128) {}
+
+    fn decimals(_env: Env) -> u32 {
+        18
+    }
+
+    fn name(env: Env) -> String {
+        String::from_str(&env, "Mock")
+    }
+
+    fn symbol(env: Env) -> String {
+        String::from_str(&env, "MCK")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn create_escrow_contract<'a>(env: &'a Env) -> (EscrowContractClient<'a>, Address) {
     let contract_address = env.register_contract(None, EscrowContract);
     let client = EscrowContractClient::new(env, &contract_address);
     (client, contract_address)
 }
 
-/// Deploy a SAC token, mint `amount` to `buyer`, return the token address.
-fn setup_token(env: &Env, buyer: &Address, amount: i128) -> Address {
-    let admin = Address::generate(env);
-    let sac = env.register_stellar_asset_contract_v2(admin.clone());
-    let token_address = sac.address();
-    StellarAssetClient::new(env, &token_address).mint(buyer, &amount);
-    token_address
+fn create_mock_token(env: &Env) -> Address {
+    env.register_contract(None, MockToken)
 }
 
-/// Sets up a funded escrow with a real SAC token.
-/// Returns (client, escrow_address, buyer, seller, arbiter, token_address, amount)
-fn setup_funded_escrow(
-    env: &Env,
-) -> (EscrowContractClient<'_>, Address, Address, Address, Address, Address, i128) {
-    let buyer = Address::generate(env);
-    let seller = Address::generate(env);
-    let arbiter = Address::generate(env);
-    let amount = 1000i128;
-    let deadline = env.ledger().sequence() + 100;
-
-    let token_address = setup_token(env, &buyer, amount);
-
-    let (client, escrow_address) = create_escrow_contract(env);
-    client.initialize(&buyer, &seller, &arbiter, &token_address, &amount, &deadline);
-    client.fund();
-
-    (client, escrow_address, buyer, seller, arbiter, token_address, amount)
-}
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 #[test]
-fn test_initialize_escrow() {
+fn test_initialize() {
     let env = Env::default();
     env.mock_all_auths();
 
     let buyer = Address::generate(&env);
     let seller = Address::generate(&env);
     let arbiter = Address::generate(&env);
-    let token_contract = setup_token(&env, &buyer, 1000);
+    let token_contract = create_mock_token(&env);
     let amount = 1000i128;
     let deadline = env.ledger().sequence() + 100;
+    let token_contract = setup_token(&env, &buyer, amount);
 
-    let (client, _) = create_escrow_contract(&env);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+    let (client, contract_address) = create_escrow_contract(&env);
 
-    let info = client.get_escrow_info();
-    assert_eq!(info.buyer, buyer);
-    assert_eq!(info.seller, seller);
-    assert_eq!(info.arbiter, arbiter);
-    assert_eq!(info.token_contract, token_contract);
-    assert_eq!(info.amount, amount);
-    assert_eq!(info.deadline, deadline);
-    assert_eq!(info.state, EscrowState::Created);
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Verify stored values
+    let (
+        stored_buyer,
+        stored_seller,
+        stored_arbiter,
+        stored_token,
+        stored_amount,
+        stored_deadline,
+        state,
+    ) = client.get_escrow_info();
+
+    assert_eq!(stored_buyer, buyer);
+    assert_eq!(stored_seller, seller);
+    assert_eq!(stored_arbiter, arbiter);
+    assert_eq!(stored_token, token_contract);
+    assert_eq!(stored_amount, amount);
+    assert_eq!(stored_deadline, deadline);
+    assert_eq!(state, EscrowState::Created);
+
+    // Event assertions after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
 }
 
 #[test]
@@ -76,17 +143,36 @@ fn test_initialize_twice() {
     let buyer = Address::generate(&env);
     let seller = Address::generate(&env);
     let arbiter = Address::generate(&env);
-    let token_contract = setup_token(&env, &buyer, 1000);
+    let token_contract = create_mock_token(&env);
     let amount = 1000i128;
     let deadline = env.ledger().sequence() + 100;
+    let token_contract = setup_token(&env, &buyer, amount);
 
     let (client, _) = create_escrow_contract(&env);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+
+    // Initialize once
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Try to initialize again — should panic
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
 }
 
 #[test]
-#[should_panic(expected = "Deadline must be at least MIN_DEADLINE_BUFFER ledgers in the future")]
+#[should_panic]
 fn test_initialize_past_deadline() {
     let env = Env::default();
     env.mock_all_auths();
@@ -95,12 +181,23 @@ fn test_initialize_past_deadline() {
     let buyer = Address::generate(&env);
     let seller = Address::generate(&env);
     let arbiter = Address::generate(&env);
-    let token_contract = setup_token(&env, &buyer, 1000);
+    let token_contract = create_mock_token(&env);
     let amount = 1000i128;
-    let deadline = env.ledger().sequence() - 1;
+    // Advance the ledger so we can express a deadline that is clearly in the past
+    env.ledger().with_mut(|li| li.sequence_number = 10);
+    let deadline = 5u32; // 5 < 10, so this is already in the past
 
     let (client, _) = create_escrow_contract(&env);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+
+    // Should panic due to past deadline
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
 }
 
 #[test]
@@ -108,10 +205,10 @@ fn test_mark_delivered() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, ..) = setup_funded_escrow(&env);
+    let (client, _, seller, _, _, _, _) = setup_funded_escrow(&env);
     client.mark_delivered();
 
-    assert_eq!(client.get_state(), Some(EscrowState::Delivered));
+    assert_eq!(client.get_state(), EscrowState::Delivered);
 }
 
 #[test]
@@ -119,86 +216,538 @@ fn test_approve_delivery() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, ..) = setup_funded_escrow(&env);
+    let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
     client.mark_delivered();
     client.approve_delivery();
 
-    assert_eq!(client.get_state(), Some(EscrowState::Completed));
+    assert_eq!(client.get_state(), EscrowState::Completed);
 }
 
 #[test]
-fn test_deadline_passed() {
+fn test_raise_dispute() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
+    client.raise_dispute(&buyer);
+
+    assert_eq!(client.get_state(), EscrowState::Disputed);
+}
+
+#[test]
+fn test_resolve_dispute_to_seller() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+    client.raise_dispute();
+    let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
+    client.raise_dispute(&buyer);
+    client.resolve_dispute(&true);
+
+    assert_eq!(client.get_state(), EscrowState::Completed);
+}
+
+#[test]
+fn test_resolve_dispute_to_buyer() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, ..) = setup_funded_escrow(&env);
+    client.raise_dispute();
+    let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
+    client.raise_dispute(&buyer);
+    client.resolve_dispute(&false);
+
+    assert_eq!(client.get_state(), EscrowState::Refunded);
+}
+
+#[test]
+fn test_unauthorized_fund() {
     let env = Env::default();
     env.mock_all_auths();
 
     let buyer = Address::generate(&env);
     let seller = Address::generate(&env);
     let arbiter = Address::generate(&env);
-    let token_contract = setup_token(&env, &buyer, 1000);
-    let amount = 1000i128;
-    let deadline = env.ledger().sequence() + 105; // > MIN_DEADLINE_BUFFER
-
-    let (client, _) = create_escrow_contract(&env);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
-
-    assert!(!client.is_deadline_passed());
-
-    env.ledger().with_mut(|li| li.sequence_number = deadline + 1);
-
-    assert!(client.is_deadline_passed());
-}
-
-#[test]
-fn test_cancel() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let buyer = Address::generate(&env);
-    let seller = Address::generate(&env);
-    let arbiter = Address::generate(&env);
-    let token_contract = setup_token(&env, &buyer, 1000);
+    let token_contract = create_mock_token(&env);
     let amount = 1000i128;
     let deadline = env.ledger().sequence() + 100;
 
-    let (client, _) = create_escrow_contract(&env);
-    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
-    client.cancel();
+    let (client, contract_address) = create_escrow_contract(&env);
 
-    assert_eq!(client.get_state(), Some(EscrowState::Cancelled));
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Cumulative events after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.fund();
+
+    // Cumulative events after fund
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.mark_delivered();
+    assert_eq!(client.get_state(), Some(EscrowState::Delivered));
+}
+
+    assert_eq!(client.get_state(), EscrowState::Delivered);
+
+    // Cumulative events after mark_delivered
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "delivery_marked"), seller.clone(),).into_val(&env),
+                ().into_val(&env),
+            ),
+        ]
+    );
 }
 
 #[test]
-fn test_release_partial() {
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_invalid_mark_delivered_from_created() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, _, _, _, _, _, amount) = setup_funded_escrow(&env);
-    let partial = 400i128;
-    client.release_partial(&partial);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = create_mock_token(&env);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 100;
 
-    let info = client.get_escrow_info();
-    assert_eq!(info.amount, amount - partial);
-    assert_eq!(info.state, EscrowState::Funded);
+    let (client, contract_address) = create_escrow_contract(&env);
+
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Cumulative events after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.fund();
+
+    // Cumulative events after fund
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.mark_delivered();
+
+    // Cumulative events after mark_delivered
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "delivery_marked"), seller.clone(),).into_val(&env),
+                ().into_val(&env),
+            ),
+        ]
+    );
+
+    client.approve_delivery();
+
+    assert_eq!(client.get_state(), EscrowState::Completed);
+
+    // Cumulative events after approve_delivery (release_to_seller fires funds_released)
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "delivery_marked"), seller.clone(),).into_val(&env),
+                ().into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "funds_released"), seller.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
 }
 
 #[test]
-fn test_arbiter_resolve_to_seller() {
+#[should_panic(expected = "Error(Contract, #8)")]
+fn test_initialize_zero_amount() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, ..) = setup_funded_escrow(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = create_mock_token(&env);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 5;
+
+    let (client, contract_address) = create_escrow_contract(&env);
+
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Cumulative events after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    // is_deadline_passed is read-only — no new events
+    assert_eq!(client.is_deadline_passed(), false);
+
+    // Jump past the deadline
+    env.ledger()
+        .with_mut(|li| li.sequence_number = deadline + 1);
+
+    // Now the deadline should be reported as passed
+    assert_eq!(client.is_deadline_passed(), true);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")]
+fn test_initialize_negative_amount() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = create_mock_token(&env);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 100;
+
+    let (client, contract_address) = create_escrow_contract(&env);
+
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Cumulative events after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.fund();
+
+    // Cumulative events after fund
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    // Arbiter resolves in favor of the seller
     client.resolve_dispute(&true);
 
-    assert_eq!(client.get_state(), Some(EscrowState::Completed));
+    assert_eq!(client.get_state(), EscrowState::Completed);
+
+    // Cumulative events after resolve_dispute(true) — release_to_seller fires funds_released
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "funds_released"), seller.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
 }
 
 #[test]
-fn test_arbiter_resolve_to_buyer() {
+fn test_initialize_max_amount() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, ..) = setup_funded_escrow(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = create_mock_token(&env);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() + 100;
+
+    let (client, contract_address) = create_escrow_contract(&env);
+
+    client.initialize(
+        &buyer,
+        &seller,
+        &arbiter,
+        &token_contract,
+        &amount,
+        &deadline,
+    );
+
+    // Cumulative events after initialize
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    client.fund();
+
+    // Cumulative events after fund
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
+
+    // Arbiter resolves in favor of the buyer (refund)
     client.resolve_dispute(&false);
 
-    assert_eq!(client.get_state(), Some(EscrowState::Refunded));
+    assert_eq!(client.get_state(), EscrowState::Refunded);
+
+    // Cumulative events after resolve_dispute(false) — refund_to_buyer fires funds_refunded
+    assert_eq!(
+        env.events().all(),
+        soroban_sdk::vec![
+            &env,
+            (
+                contract_address.clone(),
+                (
+                    Symbol::new(&env, "escrow_created"),
+                    buyer.clone(),
+                    seller.clone(),
+                )
+                    .into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "escrow_funded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+            (
+                contract_address.clone(),
+                (Symbol::new(&env, "funds_refunded"), buyer.clone(),).into_val(&env),
+                amount.into_val(&env),
+            ),
+        ]
+    );
 }

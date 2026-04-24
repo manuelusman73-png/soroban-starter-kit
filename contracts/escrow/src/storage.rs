@@ -30,6 +30,8 @@ pub enum DataKey {
     BuyerApproved,
     /// `true` once the seller has marked goods/services as delivered.
     SellerDelivered,
+    Paused,
+    Version,
 }
 
 /// Lifecycle states of an escrow.
@@ -54,11 +56,16 @@ pub enum EscrowState {
     /// Seller has marked the obligation as delivered.
     Delivered = 2,
     /// Funds have been released to the seller.
+    Disputed = 3,
+    Completed = 4,
+    Refunded = 5,
+    Cancelled = 6,
     Completed = 3,
     /// Funds have been returned to the buyer.
     Refunded = 4,
     /// Escrow was cancelled before funding.
     Cancelled = 5,
+    Disputed = 5,
 }
 
 /// Snapshot of all escrow fields returned by
