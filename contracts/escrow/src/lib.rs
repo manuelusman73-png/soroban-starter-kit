@@ -3,6 +3,19 @@
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, token, Address, Env, Symbol,
 };
+
+/// Extend storage TTL when remaining ledgers fall below this threshold.
+/// 120_960 ledgers ≈ 7 days (at ~5 s/ledger).
+const LEDGER_LIFETIME_THRESHOLD: u32 = 120_960;
+
+/// Target TTL (in ledgers) after each extension.
+/// 518_400 ledgers ≈ 30 days (at ~5 s/ledger).
+const LEDGER_BUMP_AMOUNT: u32 = 518_400;
+
+fn bump_instance(env: &Env) {
+    env.storage().instance().extend_ttl(LEDGER_LIFETIME_THRESHOLD, LEDGER_BUMP_AMOUNT);
+}
+/// script
 /// Escrow contract for secure two-party transactions
 ///
 /// This contract holds funds in escrow until conditions are met:
