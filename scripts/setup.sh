@@ -38,16 +38,36 @@ else
 fi
 
 # ── 3. Rust / Soroban CLI (optional) ─────────────────────────────────────────
-if command -v cargo &>/dev/null; then
-  if ! command -v stellar &>/dev/null; then
-    log "Installing Soroban CLI (stellar-cli)"
-    cargo install --locked stellar-cli --features opt
-    ok "stellar-cli installed"
-  else
-    ok "stellar-cli already installed: $(stellar --version 2>&1 | head -1)"
-  fi
+# Known-good SHA256 for rustup-init.sh — update this when rustup releases a new version.
+# Obtain from: https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init.sha256
+RUSTUP_SHA256="${RUSTUP_SHA256:-}"
+
+install_rust() {
+  [[ -n "$RUSTUP_SHA256" ]] || die "Set RUSTUP_SHA256 before running setup (see comment above)"
+  local tmp
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' RETURN
+  log "Downloading rustup installer"
+  curl -fsSL --proto '=https' --tlsv1.2 https://sh.rustup.rs -o "$tmp"
+  log "Verifying SHA256 checksum"
+  echo "${RUSTUP_SHA256}  ${tmp}" | sha256sum --check --status \
+    || die "rustup-init.sh checksum mismatch — aborting"
+  bash "$tmp" -y --no-modify-path
+  # shellcheck source=/dev/null
+  source "$HOME/.cargo/env"
+  ok "Rust installed: $(rustc --version)"
+}
+
+if ! command -v cargo &>/dev/null; then
+  install_rust
+fi
+
+if ! command -v stellar &>/dev/null; then
+  log "Installing Soroban CLI (stellar-cli)"
+  cargo install --locked stellar-cli --features opt
+  ok "stellar-cli installed"
 else
-  warn "Rust/Cargo not found — skipping Soroban CLI install (not needed for frontend-only dev)"
+  ok "stellar-cli already installed: $(stellar --version 2>&1 | head -1)"
 fi
 
 # ── 4. Git hooks ──────────────────────────────────────────────────────────────

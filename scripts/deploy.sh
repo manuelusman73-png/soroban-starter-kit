@@ -3,6 +3,18 @@
 # Usage: ./scripts/deploy.sh [testnet|mainnet|local] [contract]
 set -euo pipefail
 
+check_prerequisites() {
+  local missing=()
+  for cmd in stellar cargo; do
+    command -v "$cmd" &>/dev/null || missing+=("$cmd")
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "Missing required tools: ${missing[*]}" >&2
+    exit 1
+  fi
+}
+check_prerequisites
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONTRACTS_DIR="$ROOT/soroban-starter-kit/contracts"
 

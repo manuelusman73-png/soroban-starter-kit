@@ -9,6 +9,8 @@ services:
     volumes:
       - ..:/app
       - /app/node_modules          # keep container node_modules isolated
+      - /app/target                # exclude Rust build artifacts
+      - /app/.git                  # exclude git metadata
     env_file: ../.env
     depends_on:
       - stellar-node
