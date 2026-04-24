@@ -23,16 +23,16 @@ CONTRACT="${2:-all}"
 
 case "$NETWORK" in
   testnet)
-    RPC_URL="https://soroban-testnet.stellar.org"
-    PASSPHRASE="Test SDF Network ; September 2015"
+    RPC_URL="${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}"
+    PASSPHRASE="${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
     ;;
   mainnet)
-    RPC_URL="https://soroban.stellar.org"
-    PASSPHRASE="Public Global Stellar Network ; September 2015"
+    RPC_URL="${STELLAR_RPC_URL:-https://soroban.stellar.org}"
+    PASSPHRASE="${STELLAR_NETWORK_PASSPHRASE:-Public Global Stellar Network ; September 2015}"
     ;;
   local)
-    RPC_URL="http://localhost:${LOCAL_RPC_PORT:-8000}"
-    PASSPHRASE="Standalone Network ; February 2017"
+    RPC_URL="${STELLAR_RPC_URL:-http://localhost:${LOCAL_RPC_PORT:-8000}}"
+    PASSPHRASE="${STELLAR_NETWORK_PASSPHRASE:-Standalone Network ; February 2017}"
     ;;
   *)
     echo "Unknown network: $NETWORK (use testnet|mainnet|local)" >&2
