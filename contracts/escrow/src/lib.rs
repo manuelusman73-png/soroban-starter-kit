@@ -3,7 +3,6 @@
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, token, Address, Env, Symbol,
 };
-/// script
 /// Escrow contract for secure two-party transactions
 ///
 /// This contract holds funds in escrow until conditions are met:
