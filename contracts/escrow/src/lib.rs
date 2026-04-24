@@ -198,11 +198,6 @@ impl EscrowContract {
         let buyer: Address = env.storage().instance().get(&Buyer).ok_or(EscrowError::NotInitialized)?;
         buyer.require_auth();
 
-        let state: EscrowState = env.storage().instance().get(&State).ok_or(EscrowError::NotInitialized)?;
-        if state != EscrowState::Delivered {
-            return Err(EscrowError::InvalidState);
-        }
-
         Self::release_to_seller(env)
     }
 
@@ -411,7 +406,20 @@ impl EscrowContract {
 }
 
 impl EscrowContract {
+    fn require_state(env: &Env, expected: EscrowState) -> Result<(), EscrowError> {
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&DataKey::State)
+            .ok_or(EscrowError::NotInitialized)?;
+        if state != expected {
+            return Err(EscrowError::InvalidState);
+        }
+        Ok(())
+    }
+
     fn release_to_seller(env: Env) -> Result<(), EscrowError> {
+        Self::require_state(&env, EscrowState::Delivered)?;
         let seller: Address = env.storage().instance().get(&DataKey::Seller).unwrap();
         let token_contract: Address = env
             .storage()
@@ -436,6 +444,7 @@ impl EscrowContract {
     }
 
     fn refund_to_buyer(env: Env) -> Result<(), EscrowError> {
+        Self::require_state(&env, EscrowState::Funded)?;
         let buyer: Address = env.storage().instance().get(&DataKey::Buyer).unwrap();
         let token_contract: Address = env
             .storage()
