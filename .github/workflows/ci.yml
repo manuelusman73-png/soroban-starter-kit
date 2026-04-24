@@ -50,3 +50,24 @@ jobs:
 
       - name: Build
         run: node node_modules/vite/bin/vite.js build
+          name: wasm-contracts
+          path: target/wasm32-unknown-unknown/release/*.wasm
+          retention-days: 7
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit
+        run: cargo audit
