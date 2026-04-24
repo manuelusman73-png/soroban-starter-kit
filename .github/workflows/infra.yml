@@ -4,6 +4,20 @@ name: Infra
 on:
   push:
     branches: [main]
+    paths:
+      - 'infra/terraform/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/terraform/**'
+  workflow_dispatch:
+
+env:
+  TF_WORKING_DIR: infra/terraform
+
+jobs:
+  terraform-validate:
+    name: Validate
     paths: ['infra/**', 'scripts/infra.sh']
   pull_request:
     branches: [main]
@@ -41,6 +55,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.5"
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+  terraform-plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    if: github.event_name == 'pull_request'
+    env:
+      TF_VAR_network_passphrase: ${{ secrets.STELLAR_NETWORK_PASSPHRASE }}
+      TF_VAR_environment: testnet
       - name: Run compliance checks
         run: bash scripts/infra.sh compliance
 
@@ -116,6 +155,32 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
+          terraform_version: "~> 1.5"
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Plan
+        run: terraform plan -no-color -out=tfplan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan
+          retention-days: 3
+
+  terraform-apply:
+    name: Apply
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    env:
+      TF_VAR_network_passphrase: ${{ secrets.STELLAR_NETWORK_PASSPHRASE }}
+      TF_VAR_environment: mainnet
           terraform_version: ${{ env.TF_VERSION }}
 
       # Cache the .terraform directory so the apply job uses the exact same
@@ -200,6 +265,15 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
+          terraform_version: "~> 1.5"
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: ${{ env.TF_WORKING_DIR }}
           terraform_version: ${{ env.TF_VERSION }}
 
       # Restore the same .terraform directory from the plan job — no re-init needed.
