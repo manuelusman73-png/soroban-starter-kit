@@ -47,7 +47,7 @@ pub enum DataKey {
 /// assert_eq!(state, EscrowState::Funded);
 /// ```
 #[contracttype]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EscrowState {
     /// Escrow has been initialized but not yet funded.
     Created = 0,
