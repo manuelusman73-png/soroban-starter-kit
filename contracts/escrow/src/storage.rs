@@ -12,6 +12,8 @@ pub enum DataKey {
     State,
     BuyerApproved,
     SellerDelivered,
+    Paused,
+    Version,
 }
 
 #[contracttype]
@@ -20,9 +22,13 @@ pub enum EscrowState {
     Created = 0,
     Funded = 1,
     Delivered = 2,
+    Disputed = 3,
+    Completed = 4,
+    Refunded = 5,
+    Cancelled = 6,
     Completed = 3,
     Refunded = 4,
-    Cancelled = 5,
+    Disputed = 5,
 }
 
 #[contracttype]
