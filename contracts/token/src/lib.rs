@@ -10,16 +10,21 @@ use admin::require_admin;
 use storage::DataKey::{Admin, Allowance, Balance, Metadata, TotalSupply};
 use storage::MetadataKey::{Decimals, Name, Symbol as SymbolKey};
 
-const BUMP_THRESHOLD: u32 = 120_960;
-const BUMP_AMOUNT: u32 = 518_400;
+/// Extend storage TTL when remaining ledgers fall below this threshold.
+/// 120_960 ledgers ≈ 7 days (at ~5 s/ledger).
+const LEDGER_LIFETIME_THRESHOLD: u32 = 120_960;
+
+/// Target TTL (in ledgers) after each extension.
+/// 518_400 ledgers ≈ 30 days (at ~5 s/ledger).
+const LEDGER_BUMP_AMOUNT: u32 = 518_400;
 const CONTRACT_VERSION: u32 = 1;
 
 fn bump_instance(env: &Env) {
-    env.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
+    env.storage().instance().extend_ttl(LEDGER_LIFETIME_THRESHOLD, LEDGER_BUMP_AMOUNT);
 }
 
 fn bump_persistent(env: &Env, key: &DataKey) {
-    env.storage().persistent().extend_ttl(key, BUMP_THRESHOLD, BUMP_AMOUNT);
+    env.storage().persistent().extend_ttl(key, LEDGER_LIFETIME_THRESHOLD, LEDGER_BUMP_AMOUNT);
 }
 
 /// Token contract implementing the Soroban Token Interface
