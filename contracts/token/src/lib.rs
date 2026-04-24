@@ -13,6 +13,7 @@ use soroban_sdk::{
     contract, contractimpl, contracttype, token, token::TokenInterface, Address, Env, String,
     panic_with_error,
 };
+use storage::DataKey::{Admin, Allowance, Balance, Metadata, TotalSupply, Paused, Version};
 
 use admin::require_admin;
 use storage::DataKey::{Admin, Allowance, Balance, Metadata, TotalSupply};
@@ -20,6 +21,7 @@ use storage::MetadataKey::{Decimals, Name, Symbol as SymbolKey};
 
 const BUMP_THRESHOLD: u32 = 120_960;
 const BUMP_AMOUNT: u32 = 518_400;
+const CONTRACT_VERSION: u32 = 1;
 
 fn bump_instance(env: &Env) {
     env.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
@@ -64,6 +66,7 @@ impl TokenContract {
         env.storage().instance().set(&Metadata(SymbolKey), &symbol);
         env.storage().instance().set(&Metadata(Decimals), &decimals);
         env.storage().instance().set(&TotalSupply, &0i128);
+        env.storage().instance().set(&Version, &CONTRACT_VERSION);
         // Issue #196: Store max_supply if provided
         if let Some(max) = max_supply {
             env.storage().instance().set(&DataKey::MaxSupply, &max);
@@ -78,6 +81,7 @@ impl TokenContract {
     pub fn mint(env: Env, to: Address, amount: i128) -> Result<(), TokenError> {
         let admin = require_admin(&env)?;
         admin.require_auth();
+        Self::require_not_paused(&env)?;
 
         if amount < 0 {
             return Err(TokenError::InvalidAmount);
@@ -111,6 +115,7 @@ impl TokenContract {
     pub fn burn_admin(env: Env, from: Address, amount: i128) -> Result<(), TokenError> {
         let admin = require_admin(&env)?;
         admin.require_auth();
+        Self::require_not_paused(&env)?;
         // Issue #199: Require authorization from token holder
         from.require_auth();
         if amount < 0 {
@@ -130,6 +135,7 @@ impl TokenContract {
         Ok(())
     }
 
+    /// Set admin role to `new_admin`. Current admin only.
     pub fn set_admin(env: Env, new_admin: Address) -> Result<(), TokenError> {
         let admin = require_admin(&env)?;
         admin.require_auth();
@@ -158,6 +164,42 @@ impl TokenContract {
         env.storage().instance().remove(&DataKey::PendingAdmin);
         bump_instance(&env);
         events::admin_set(&env, &pending_admin);
+        Ok(())
+    }
+
+    /// Pause the contract. Admin only.
+    pub fn pause(env: Env) -> Result<(), TokenError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&Paused, &true);
+        bump_instance(&env);
+        Ok(())
+    }
+
+    /// Unpause the contract. Admin only.
+    pub fn unpause(env: Env) -> Result<(), TokenError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&Paused, &false);
+        bump_instance(&env);
+        Ok(())
+    }
+
+    /// Check if the contract is paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage().instance().get(&Paused).unwrap_or(false)
+    }
+
+    /// Return the contract version.
+    pub fn version(env: Env) -> u32 {
+        env.storage().instance().get(&Version).unwrap_or(CONTRACT_VERSION)
+    }
+
+    /// Upgrade the contract to a new WASM hash. Admin only.
+    pub fn upgrade(env: Env, new_wasm_hash: soroban_sdk::BytesN<32>) -> Result<(), TokenError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
         Ok(())
     }
 
@@ -232,6 +274,13 @@ impl token::TokenInterface for TokenContract {
         }
     }
 
+    pub fn transfer_from(
+        env: Env,
+        spender: Address,
+        from: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), TokenError> {
     fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
 
@@ -243,6 +292,8 @@ impl token::TokenInterface for TokenContract {
         let val: AllowanceValue = env.storage().temporary()
             .get(&key)
             .unwrap_or(AllowanceValue { amount: 0, expiration_ledger: 0 });
+        if env.ledger().sequence() > val.expiration_ledger || val.amount < amount {
+            return Err(TokenError::InsufficientAllowance);
 
         if env.ledger().sequence() > val.expiration_ledger {
             panic!("Allowance expired");
@@ -264,6 +315,40 @@ impl token::TokenInterface for TokenContract {
                 expiration_ledger: val.expiration_ledger,
             },
         );
+        Self::transfer_impl(env.clone(), from, to, amount)
+    }
+
+    pub fn burn(env: Env, from: Address, amount: i128) -> Result<(), TokenError> {
+        from.require_auth();
+        let balance = Self::balance_of(env.clone(), from.clone());
+        if balance < amount {
+            return Err(TokenError::InsufficientBalance);
+        }
+        env.storage()
+            .persistent()
+            .set(&Balance(from.clone()), &(balance - amount));
+        bump_persistent(&env, &Balance(from.clone()));
+        let supply: i128 = env.storage().instance().get(&TotalSupply).unwrap_or(0);
+        env.storage().instance().set(&TotalSupply, &(supply - amount));
+        bump_instance(&env);
+        env.events()
+            .publish((Symbol::new(&env, "burn"), from), amount);
+        Ok(())
+    }
+
+    pub fn burn_from(env: Env, spender: Address, from: Address, amount: i128) -> Result<(), TokenError> {
+        spender.require_auth();
+        let key = Allowance(AllowanceDataKey {
+            from: from.clone(),
+            spender: spender.clone(),
+        });
+        let val: AllowanceValue = env
+            .storage()
+            .temporary()
+            .get(&key)
+            .unwrap_or(AllowanceValue { amount: 0, expiration_ledger: 0 });
+        if env.ledger().sequence() > val.expiration_ledger || val.amount < amount {
+            return Err(TokenError::InsufficientAllowance);
         // Issue #198: Emit approve event with updated allowance
         events::approved(&env, &from, &spender, new_allowance);
         if let Err(e) = Self::transfer_impl(env.clone(), from, to, amount) {
@@ -292,6 +377,26 @@ impl token::TokenInterface for TokenContract {
         let key = Allowance(AllowanceDataKey { from: from.clone(), spender });
         let balance = Self::balance_of(env.clone(), from.clone());
         if balance < amount {
+            return Err(TokenError::InsufficientBalance);
+        }
+        env.storage().temporary().set(
+            &key,
+            &AllowanceValue {
+                amount: val.amount - amount,
+                expiration_ledger: val.expiration_ledger,
+            },
+        );
+        env.storage()
+            .persistent()
+            .set(&Balance(from.clone()), &(balance - amount));
+        bump_persistent(&env, &Balance(from.clone()));
+        let supply: i128 = env.storage().instance().get(&TotalSupply).unwrap_or(0);
+        env.storage().instance().set(&TotalSupply, &(supply - amount));
+        bump_instance(&env);
+        env.events()
+            .publish((Symbol::new(&env, "burn_from"), from), amount);
+        Ok(())
+    }
             panic!("Insufficient balance");
         }
 
@@ -301,6 +406,48 @@ impl token::TokenInterface for TokenContract {
         let total_supply: i128 = env.storage().instance().get(&TotalSupply).unwrap_or(0);
         env.storage().instance().set(&TotalSupply, &(total_supply - amount));
 
+// Implement the Soroban TokenInterface trait so the escrow can use
+// token::Client::new().  This impl delegates to the methods above and does NOT
+// use #[contractimpl] to avoid duplicate symbol generation.
+impl token::TokenInterface for TokenContract {
+    fn allowance(env: Env, from: Address, spender: Address) -> i128 {
+        TokenContract::allowance(env, from, spender)
+    }
+
+    fn approve(
+        env: Env,
+        from: Address,
+        spender: Address,
+        amount: i128,
+        expiration_ledger: u32,
+    ) {
+        TokenContract::approve(env, from, spender, amount, expiration_ledger);
+    }
+
+    fn balance(env: Env, id: Address) -> i128 {
+        TokenContract::balance(env, id)
+    }
+
+    fn transfer(env: Env, from: Address, to: Address, amount: i128) {
+        TokenContract::transfer(env, from, to, amount);
+    }
+
+    fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
+        if let Err(e) = TokenContract::transfer_from(env.clone(), spender, from, to, amount) {
+            panic_with_error!(&env, e);
+        }
+    }
+
+    fn burn(env: Env, from: Address, amount: i128) {
+        if let Err(e) = TokenContract::burn(env.clone(), from, amount) {
+            panic_with_error!(&env, e);
+        }
+    }
+
+    fn burn_from(env: Env, spender: Address, from: Address, amount: i128) {
+        if let Err(e) = TokenContract::burn_from(env.clone(), spender, from, amount) {
+            panic_with_error!(&env, e);
+        }
         events::burned(&env, &from, amount);
     }
 
@@ -328,6 +475,20 @@ impl TokenContract {
         env.storage().persistent().get(&Balance(id)).unwrap_or(0)
     }
 
+    fn require_not_paused(env: &Env) -> Result<(), TokenError> {
+        if env.storage().instance().get(&Paused).unwrap_or(false) {
+            return Err(TokenError::Unauthorized);
+        }
+        Ok(())
+    }
+
+    fn transfer_impl(
+        env: Env,
+        from: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), TokenError> {
+        Self::require_not_paused(&env)?;
     fn transfer_impl(env: Env, from: Address, to: Address, amount: i128) -> Result<(), TokenError> {
         if amount < 0 {
             return Err(TokenError::InvalidAmount);

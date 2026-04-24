@@ -9,6 +9,8 @@ pub enum DataKey {
     Allowance(AllowanceDataKey),
     Metadata(MetadataKey),
     TotalSupply,
+    Paused,
+    Version,
     MaxSupply,
 }
 

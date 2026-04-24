@@ -85,6 +85,22 @@ fn test_fund() {
 
     let (client, _) = create_escrow_contract(&env);
     client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+    client.initialize(&buyer, &seller, &arbiter, &token_contract, &amount, &deadline);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")]
+fn test_initialize_past_deadline() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|l| l.sequence_number = 10);
+
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let token_contract = setup_token(&env, &buyer, 1000);
+    let amount = 1000i128;
+    let deadline = env.ledger().sequence() - 1;
     client.fund();
 
     assert_eq!(client.get_state(), EscrowState::Funded);
@@ -129,6 +145,8 @@ fn test_resolve_dispute_to_seller() {
     let env = Env::default();
     env.mock_all_auths();
 
+    let (client, ..) = setup_funded_escrow(&env);
+    client.raise_dispute();
     let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
     client.raise_dispute(&buyer);
     client.resolve_dispute(&true);
@@ -141,6 +159,8 @@ fn test_resolve_dispute_to_buyer() {
     let env = Env::default();
     env.mock_all_auths();
 
+    let (client, ..) = setup_funded_escrow(&env);
+    client.raise_dispute();
     let (client, buyer, _, _, _, _, _) = setup_funded_escrow(&env);
     client.raise_dispute(&buyer);
     client.resolve_dispute(&false);

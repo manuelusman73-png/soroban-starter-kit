@@ -389,6 +389,18 @@
                         "key": {
                           "vec": [
                             {
+                              "symbol": "BuyerApproved"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "bool": true
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
                               "symbol": "Deadline"
                             }
                           ]
@@ -418,7 +430,7 @@
                           ]
                         },
                         "val": {
-                          "u32": 3
+                          "u32": 4
                         }
                       },
                       {
@@ -431,6 +443,18 @@
                         },
                         "val": {
                           "address": "CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "Version"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u32": 1
                         }
                       }
                     ]
@@ -1584,7 +1608,7 @@
               }
             ],
             "data": {
-              "u32": 3
+              "u32": 4
             }
           }
         }

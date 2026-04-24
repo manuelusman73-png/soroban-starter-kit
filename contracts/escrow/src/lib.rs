@@ -9,6 +9,10 @@ mod test;
 pub use errors::EscrowError;
 pub use storage::{DataKey, EscrowInfo, EscrowState};
 
+use admin::require_admin;
+use storage::DataKey::{Amount, Arbiter, Buyer, BuyerApproved, Deadline, Seller, SellerDelivered, State, TokenContract, Paused, Version};
+
+use soroban_sdk::{contract, contractimpl, token, Address, Env, Symbol};
 use soroban_sdk::{contract, contractimpl, Address, Env, token};
 use storage::DataKey::{Amount, Arbiter, Buyer, Deadline, Seller, State, TokenContract};
 
@@ -18,6 +22,7 @@ const BUMP_THRESHOLD: u32 = 120_960;
 const BUMP_AMOUNT: u32 = 518_400;
 /// Minimum ledgers from now a deadline must be set to (~8 minutes at 5s/ledger).
 const MIN_DEADLINE_BUFFER: u32 = 100;
+const CONTRACT_VERSION: u32 = 1;
 
 fn bump_instance(env: &Env) {
     env.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
@@ -58,6 +63,7 @@ impl EscrowContract {
 
         // Verify deadline is sufficiently in the future
         if deadline_ledger < env.ledger().sequence() + MIN_DEADLINE_BUFFER {
+            return Err(EscrowError::InvalidAmount);
             return Err(EscrowError::DeadlinePassed);
         }
 
@@ -73,6 +79,9 @@ impl EscrowContract {
         env.storage().instance().set(&Amount, &amount);
         env.storage().instance().set(&Deadline, &deadline_ledger);
         env.storage().instance().set(&State, &EscrowState::Created);
+        env.storage().instance().set(&BuyerApproved, &false);
+        env.storage().instance().set(&SellerDelivered, &false);
+        env.storage().instance().set(&Version, &CONTRACT_VERSION);
         bump_instance(&env);
 
         events::escrow_created(&env, &buyer, &seller, amount);
@@ -82,6 +91,12 @@ impl EscrowContract {
 
     /// Issue #192: Move require_auth() to top before any state reads
     pub fn fund(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
         let buyer: Address = env.storage().instance().get(&Buyer).ok_or(EscrowError::NotInitialized)?;
         buyer.require_auth();
 
@@ -105,6 +120,12 @@ impl EscrowContract {
     }
 
     pub fn mark_delivered(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
         let seller: Address = env.storage().instance().get(&Seller).ok_or(EscrowError::NotInitialized)?;
         seller.require_auth();
 
@@ -122,6 +143,12 @@ impl EscrowContract {
     }
 
     pub fn approve_delivery(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
         let buyer: Address = env.storage().instance().get(&Buyer).ok_or(EscrowError::NotInitialized)?;
         buyer.require_auth();
 
@@ -134,6 +161,14 @@ impl EscrowContract {
     }
 
     pub fn request_refund(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
+        let buyer: Address = env.storage().instance().get(&Buyer).unwrap();
+        let deadline: u32 = env.storage().instance().get(&Deadline).unwrap();
         let buyer: Address = env.storage().instance().get(&Buyer).ok_or(EscrowError::NotInitialized)?;
         buyer.require_auth();
 
@@ -149,6 +184,23 @@ impl EscrowContract {
         Self::refund_to_buyer(env)
     }
 
+    /// Arbiter resolves a dispute.
+    pub fn resolve_dispute(env: Env, release_to_seller: bool) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
+        if state != EscrowState::Disputed {
+            return Err(EscrowError::InvalidState);
+        }
+        let arbiter: Address = env.storage().instance().get(&Arbiter).unwrap();
+        arbiter.require_auth();
+        if release_to_seller {
+            Self::release_to_seller(env)
+        } else {
+            Self::refund_to_buyer(env)
     /// Issue #193: Add raise_dispute() function
     pub fn raise_dispute(env: Env, caller: Address) -> Result<(), EscrowError> {
         let buyer: Address = env.storage().instance().get(&Buyer).ok_or(EscrowError::NotInitialized)?;
@@ -158,6 +210,37 @@ impl EscrowContract {
             return Err(EscrowError::NotAuthorized);
         }
 
+    /// Buyer or seller raises a dispute.
+    pub fn raise_dispute(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
+        if !matches!(state, EscrowState::Funded | EscrowState::Delivered) {
+            return Err(EscrowError::InvalidState);
+        }
+        let buyer: Address = env.storage().instance().get(&Buyer).unwrap();
+        
+        // Try buyer first, if not buyer then must be seller
+        buyer.require_auth();
+        
+        env.storage().instance().set(&State, &EscrowState::Disputed);
+        bump_instance(&env);
+        env.events()
+            .publish((Symbol::new(&env, "dispute_raised"), buyer), ());
+        Ok(())
+    }
+
+    /// Buyer partially releases `amount` tokens to the seller.
+    pub fn release_partial(env: Env, amount: i128) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
         caller.require_auth();
 
         let state: EscrowState = env.storage().instance().get(&State).ok_or(EscrowError::NotInitialized)?;
@@ -171,6 +254,15 @@ impl EscrowContract {
         Ok(())
     }
 
+    /// Buyer cancels an unfunded escrow (Created state only).
+    pub fn cancel(env: Env) -> Result<(), EscrowError> {
+        Self::require_not_paused(&env)?;
+        let state: EscrowState = env
+            .storage()
+            .instance()
+            .get(&State)
+            .ok_or(EscrowError::NotInitialized)?;
+        if state != EscrowState::Created {
     /// Issue #193: Restrict resolve_dispute to Disputed state only
     pub fn resolve_dispute(env: Env, release_to_seller: bool) -> Result<(), EscrowError> {
         let arbiter: Address = env.storage().instance().get(&Arbiter).ok_or(EscrowError::NotInitialized)?;
@@ -181,6 +273,13 @@ impl EscrowContract {
             return Err(EscrowError::InvalidState);
         }
 
+    /// Extend storage TTL. Anyone can call this to keep an active escrow alive.
+    pub fn bump(env: Env) -> Result<(), EscrowError> {
+        if !env.storage().instance().has(&State) {
+            return Err(EscrowError::NotInitialized);
+        }
+        bump_instance(&env);
+        Ok(())
         if release_to_seller {
             Self::release_to_seller(env)
         } else {
@@ -202,6 +301,42 @@ impl EscrowContract {
 
     pub fn get_state(env: Env) -> EscrowState {
         env.storage().instance().get(&State).unwrap_or(EscrowState::Created)
+    }
+
+    /// Pause the contract. Admin only.
+    pub fn pause(env: Env) -> Result<(), EscrowError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&Paused, &true);
+        bump_instance(&env);
+        Ok(())
+    }
+
+    /// Unpause the contract. Admin only.
+    pub fn unpause(env: Env) -> Result<(), EscrowError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&Paused, &false);
+        bump_instance(&env);
+        Ok(())
+    }
+
+    /// Check if the contract is paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage().instance().get(&Paused).unwrap_or(false)
+    }
+
+    /// Return the contract version.
+    pub fn version(env: Env) -> u32 {
+        env.storage().instance().get(&Version).unwrap_or(CONTRACT_VERSION)
+    }
+
+    /// Upgrade the contract to a new WASM hash. Admin only.
+    pub fn upgrade(env: Env, new_wasm_hash: soroban_sdk::BytesN<32>) -> Result<(), EscrowError> {
+        let admin = require_admin(&env)?;
+        admin.require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        Ok(())
     }
 }
 
@@ -235,6 +370,13 @@ impl EscrowContract {
         bump_instance(&env);
         events::funds_refunded(&env, &buyer, amount);
 
+        Ok(())
+    }
+
+    fn require_not_paused(env: &Env) -> Result<(), EscrowError> {
+        if env.storage().instance().get(&Paused).unwrap_or(false) {
+            return Err(EscrowError::NotAuthorized);
+        }
         Ok(())
     }
 }
